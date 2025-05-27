@@ -482,14 +482,6 @@
         
         <div class="canvas-container">
             <div class="canvas-grid"></div>
-            <div class="canvas-info">
-                🎯 Pan: Click & Drag | 🔍 Zoom: Mouse Wheel | ➕ Add: Drag from sidebar
-            </div>
-            <div class="zoom-controls">
-                <button class="zoom-btn" onclick="flowCanvas.zoomIn()" title="Zoom In">+</button>
-                <button class="zoom-btn" onclick="flowCanvas.zoomOut()" title="Zoom Out">-</button>
-                <button class="zoom-btn" onclick="flowCanvas.resetZoom()" title="Reset Zoom">⌂</button>
-            </div>
             <div class="canvas" id="canvas">
                 <svg class="svg-connections" id="svgConnections">
                     <defs>
@@ -527,13 +519,7 @@
                 this.isConnecting = false;
                 this.connectionStart = null;
                 this.tempLine = null;
-                
-                // Canvas panning and zooming
-                this.isPanning = false;
-                this.panStart = { x: 0, y: 0 };
-                this.canvasTransform = { x: 0, y: 0, scale: 1 };
-                this.minZoom = 0.3;
-                this.maxZoom = 2;
+                this.canvasOffset = { x: 0, y: 0 };
                 
                 this.initializeEventListeners();
                 this.addStartNode();
@@ -543,36 +529,6 @@
                 const canvas = document.getElementById('canvas');
                 const canvasContainer = document.querySelector('.canvas-container');
                 const palette = document.querySelector('.node-palette');
-                
-                // Canvas panning
-                canvasContainer.addEventListener('mousedown', (e) => {
-                    if (e.target === canvasContainer || e.target.classList.contains('canvas-grid') || e.target === canvas) {
-                        this.startPanning(e);
-                    }
-                });
-                
-                document.addEventListener('mousemove', (e) => {
-                    if (this.isPanning) {
-                        this.updatePanning(e);
-                    }
-                });
-                
-                document.addEventListener('mouseup', () => {
-                    this.stopPanning();
-                });
-                
-                // Canvas zooming
-                canvasContainer.addEventListener('wheel', (e) => {
-                    e.preventDefault();
-                    this.handleZoom(e);
-                });
-                
-                // Prevent context menu on canvas
-                canvasContainer.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                });
-                
-                // Mouse-based drag and drop for better compatibility
                 
                 // Mouse-based drag and drop for better compatibility
                 let isDraggingFromPalette = false;
@@ -732,7 +688,6 @@
                 // Connection events
                 canvas.addEventListener('mousedown', (e) => {
                     if (e.target.classList.contains('connection-point')) {
-                        e.stopPropagation();
                         this.startConnection(e.target, e);
                     }
                 });
@@ -748,72 +703,6 @@
                         this.endConnection(e.target);
                     }
                 });
-            }
-            
-            // Canvas panning methods
-            startPanning(e) {
-                this.isPanning = true;
-                this.panStart = { x: e.clientX, y: e.clientY };
-                document.getElementById('canvas').classList.add('panning');
-            }
-            
-            updatePanning(e) {
-                if (!this.isPanning) return;
-                
-                const deltaX = e.clientX - this.panStart.x;
-                const deltaY = e.clientY - this.panStart.y;
-                
-                this.canvasTransform.x += deltaX;
-                this.canvasTransform.y += deltaY;
-                
-                this.panStart = { x: e.clientX, y: e.clientY };
-                this.updateCanvasTransform();
-            }
-            
-            stopPanning() {
-                this.isPanning = false;
-                document.getElementById('canvas').classList.remove('panning');
-            }
-            
-            // Canvas zooming methods
-            handleZoom(e) {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-                
-                const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-                const newScale = Math.max(this.minZoom, Math.min(this.maxZoom, this.canvasTransform.scale * zoomFactor));
-                
-                if (newScale !== this.canvasTransform.scale) {
-                    const scaleDiff = newScale / this.canvasTransform.scale;
-                    this.canvasTransform.x = centerX - (centerX - this.canvasTransform.x) * scaleDiff;
-                    this.canvasTransform.y = centerY - (centerY - this.canvasTransform.y) * scaleDiff;
-                    this.canvasTransform.scale = newScale;
-                    this.updateCanvasTransform();
-                }
-            }
-            
-            zoomIn() {
-                const newScale = Math.min(this.maxZoom, this.canvasTransform.scale * 1.2);
-                this.canvasTransform.scale = newScale;
-                this.updateCanvasTransform();
-            }
-            
-            zoomOut() {
-                const newScale = Math.max(this.minZoom, this.canvasTransform.scale * 0.8);
-                this.canvasTransform.scale = newScale;
-                this.updateCanvasTransform();
-            }
-            
-            resetZoom() {
-                this.canvasTransform = { x: 0, y: 0, scale: 1 };
-                this.updateCanvasTransform();
-            }
-            
-            updateCanvasTransform() {
-                const canvas = document.getElementById('canvas');
-                const transform = `translate(${this.canvasTransform.x}px, ${this.canvasTransform.y}px) scale(${this.canvasTransform.scale})`;
-                canvas.style.transform = transform;
             }
             
             addStartNode() {
@@ -1390,61 +1279,21 @@
                             .form-input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; }
                             .checkbox-group { display: flex; flex-direction: column; gap: 10px; }
                             .checkbox-item { display: flex; align-items: center; gap: 8px; }
-                            .radio-group { display: flex; gap: 20px; margin-bottom: 15px; }
+                            .radio-group { display: flex; gap: 20px; }
                             .radio-item { display: flex; align-items: center; gap: 8px; }
                             .file-upload { border: 2px dashed #4facfe; padding: 20px; text-align: center; border-radius: 5px; }
-                            .conditional-section { margin-left: 20px; margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 5px; display: none; }
-                            .conditional-section.show { display: block; animation: slideDown 0.3s ease; }
-                            @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+                            .conditional-section { margin-left: 20px; margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 5px; }
                             .btn { background: #4facfe; color: white; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
                         </style>
                     </head>
                     <body>
                         <div class="form-container">
-                            <h1>🎯 Form Preview</h1>
-                            <p style="color: #666; margin-bottom: 30px;">This is how your form will appear to users</p>
+                            <h1>Form Preview</h1>
                             <form id="previewForm">
                                 ${formHTML}
-                                <button type="button" class="btn" onclick="submitPreviewForm()">Submit Form</button>
+                                <button type="button" class="btn" onclick="alert('Form submitted! (This is just a preview)')">Submit Form</button>
                             </form>
                         </div>
-                        <script>
-                            function handleYesNoChange(nodeId, value) {
-                                const yesSection = document.getElementById('yes_' + nodeId);
-                                const noSection = document.getElementById('no_' + nodeId);
-                                
-                                // Hide both sections first
-                                if (yesSection) yesSection.classList.remove('show');
-                                if (noSection) noSection.classList.remove('show');
-                                
-                                // Show the selected section
-                                setTimeout(() => {
-                                    if (value === 'yes' && yesSection) {
-                                        yesSection.classList.add('show');
-                                    } else if (value === 'no' && noSection) {
-                                        noSection.classList.add('show');
-                                    }
-                                }, 100);
-                            }
-                            
-                            function submitPreviewForm() {
-                                const formData = new FormData(document.getElementById('previewForm'));
-                                const data = {};
-                                for (let [key, value] of formData.entries()) {
-                                    if (data[key]) {
-                                        if (Array.isArray(data[key])) {
-                                            data[key].push(value);
-                                        } else {
-                                            data[key] = [data[key], value];
-                                        }
-                                    } else {
-                                        data[key] = value;
-                                    }
-                                }
-                                console.log('Form Data:', data);
-                                alert('Form submitted successfully! Check console for data.');
-                            }
-                        </script>
                     </body>
                     </html>
                 `);
@@ -1473,46 +1322,33 @@
                 
                 switch (node.type) {
                     case 'text':
-                        html += `<input type="text" class="form-input" placeholder="${node.data.placeholder}" name="q_${nodeId}">`;
+                        html += `<input type="text" class="form-input" placeholder="${node.data.placeholder}">`;
                         break;
                     case 'checkbox':
                         html += '<div class="checkbox-group">';
                         node.data.options.forEach((option, i) => {
-                            html += `<div class="checkbox-item"><input type="checkbox" id="cb${nodeId}_${i}" name="q_${nodeId}" value="${option}"><label for="cb${nodeId}_${i}">${option}</label></div>`;
+                            html += `<div class="checkbox-item"><input type="checkbox" id="cb${nodeId}_${i}"><label for="cb${nodeId}_${i}">${option}</label></div>`;
                         });
                         html += '</div>';
                         break;
                     case 'file':
-                        html += `<div class="file-upload"><input type="file" accept="${node.data.acceptedTypes}" name="q_${nodeId}"><p>📁 Click to upload or drag and drop</p></div>`;
+                        html += `<div class="file-upload"><input type="file" accept="${node.data.acceptedTypes}"><p>Upload file here</p></div>`;
                         break;
                     case 'yesno':
                         html += '<div class="radio-group">';
-                        html += `<div class="radio-item"><input type="radio" name="q_${nodeId}" id="yes_${nodeId}_input" value="yes" onchange="handleYesNoChange('${nodeId}', 'yes')"><label for="yes_${nodeId}_input">✅ Yes</label></div>`;
-                        html += `<div class="radio-item"><input type="radio" name="q_${nodeId}" id="no_${nodeId}_input" value="no" onchange="handleYesNoChange('${nodeId}', 'no')"><label for="no_${nodeId}_input">❌ No</label></div>`;
+                        html += `<div class="radio-item"><input type="radio" name="yn${nodeId}" id="yes${nodeId}"><label for="yes${nodeId}">Yes</label></div>`;
+                        html += `<div class="radio-item"><input type="radio" name="yn${nodeId}" id="no${nodeId}"><label for="no${nodeId}">No</label></div>`;
                         html += '</div>';
                         
-                        // Add conditional sections that are hidden by default
+                        // Add conditional sections
                         const yesConnection = this.connections.find(conn => conn.from === nodeId && conn.type === 'yes');
                         const noConnection = this.connections.find(conn => conn.from === nodeId && conn.type === 'no');
                         
                         if (yesConnection) {
-                            const yesContent = this.generateFormHTML(yesConnection.to, new Set(visited));
-                            if (yesContent) {
-                                html += `<div id="yes_${nodeId}" class="conditional-section">
-                                    <div style="font-weight: 600; color: #28a745; margin-bottom: 10px;">✅ If Yes:</div>
-                                    ${yesContent}
-                                </div>`;
-                            }
+                            html += `<div class="conditional-section"><strong>If Yes:</strong>${this.generateFormHTML(yesConnection.to, new Set(visited))}</div>`;
                         }
-                        
                         if (noConnection) {
-                            const noContent = this.generateFormHTML(noConnection.to, new Set(visited));
-                            if (noContent) {
-                                html += `<div id="no_${nodeId}" class="conditional-section">
-                                    <div style="font-weight: 600; color: #ff4757; margin-bottom: 10px;">❌ If No:</div>
-                                    ${noContent}
-                                </div>`;
-                            }
+                            html += `<div class="conditional-section"><strong>If No:</strong>${this.generateFormHTML(noConnection.to, new Set(visited))}</div>`;
                         }
                         
                         html += '</div>';
@@ -1521,7 +1357,7 @@
                 
                 html += '</div>';
                 
-                // Find next node for non-conditional flow
+                // Find next node
                 const nextConnection = this.connections.find(conn => conn.from === nodeId && conn.type === 'output');
                 if (nextConnection) {
                     html += this.generateFormHTML(nextConnection.to, visited);
