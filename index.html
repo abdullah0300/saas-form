@@ -17,7 +17,6 @@
             color: #fff;
             overflow: hidden;
             height: 100vh;
-            touch-action: none; /* Prevent default touch behaviors */
         }
         
         .toolbar {
@@ -105,7 +104,6 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
-            touch-action: manipulation; /* Better touch handling */
         }
         
         .palette-item::before {
@@ -129,9 +127,8 @@
             border-color: rgba(255, 255, 255, 0.3);
         }
         
-        .palette-item:active, .palette-item.dragging {
+        .palette-item:active {
             cursor: grabbing;
-            transform: scale(0.95);
         }
         
         .canvas-container {
@@ -146,16 +143,25 @@
             transition: background-color 0.3s ease;
         }
         
-        .canvas {
-            width: 4000px; /* Large canvas size */
-            height: 4000px;
+        .canvas-viewport {
+            width: 100%;
+            height: 100%;
             position: relative;
+            overflow: hidden;
             cursor: grab;
-            transform-origin: 0 0;
         }
         
-        .canvas:active {
+        .canvas-viewport.panning {
             cursor: grabbing;
+        }
+        
+        .canvas {
+            width: 5000px;
+            height: 5000px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: transform 0.1s ease-out;
         }
         
         .canvas-grid {
@@ -422,19 +428,36 @@
             }
         }
         
-        .drag-preview {
-            position: fixed;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .canvas-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .control-btn {
+            background: rgba(22, 33, 62, 0.9);
             color: white;
-            padding: 10px 15px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 14px;
-            pointer-events: none;
-            z-index: 10000;
-            transform: translate(-50%, -50%) scale(0.9);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            opacity: 0.9;
+            border: 2px solid rgba(79, 172, 254, 0.5);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-btn:hover {
+            background: rgba(79, 172, 254, 0.8);
+            border-color: rgba(79, 172, 254, 0.8);
+            transform: scale(1.1);
         }
         
         @media (max-width: 768px) {
@@ -494,30 +517,41 @@
                     • Click nodes to edit properties<br>
                     • Drag from connection points to link<br>
                     • Yes/No nodes have separate outputs<br>
-                    • Green = Yes, Red = No
+                    • Green = Yes, Red = No<br>
+                    • <strong>Hold Space + Drag to pan canvas</strong><br>
+                    • Use zoom controls to navigate
                 </div>
             </div>
         </div>
         
         <div class="canvas-container">
             <div class="canvas-grid"></div>
-            <div class="canvas" id="canvas">
-                <svg class="svg-connections" id="svgConnections">
-                    <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                                refX="10" refY="3.5" orient="auto" class="arrow-marker">
-                            <polygon points="0 0, 10 3.5, 0 7" />
-                        </marker>
-                        <marker id="arrowhead-yes" markerWidth="10" markerHeight="7" 
-                                refX="10" refY="3.5" orient="auto" class="arrow-marker yes">
-                            <polygon points="0 0, 10 3.5, 0 7" />
-                        </marker>
-                        <marker id="arrowhead-no" markerWidth="10" markerHeight="7" 
-                                refX="10" refY="3.5" orient="auto" class="arrow-marker no">
-                            <polygon points="0 0, 10 3.5, 0 7" />
-                        </marker>
-                    </defs>
-                </svg>
+            <div class="canvas-viewport" id="canvasViewport">
+                <div class="canvas" id="canvas">
+                    <svg class="svg-connections" id="svgConnections">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                    refX="10" refY="3.5" orient="auto" class="arrow-marker">
+                                <polygon points="0 0, 10 3.5, 0 7" />
+                            </marker>
+                            <marker id="arrowhead-yes" markerWidth="10" markerHeight="7" 
+                                    refX="10" refY="3.5" orient="auto" class="arrow-marker yes">
+                                <polygon points="0 0, 10 3.5, 0 7" />
+                            </marker>
+                            <marker id="arrowhead-no" markerWidth="10" markerHeight="7" 
+                                    refX="10" refY="3.5" orient="auto" class="arrow-marker no">
+                                <polygon points="0 0, 10 3.5, 0 7" />
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="canvas-controls">
+                <button class="control-btn" onclick="flowCanvas.zoomIn()" title="Zoom In">+</button>
+                <button class="control-btn" onclick="flowCanvas.zoomOut()" title="Zoom Out">-</button>
+                <button class="control-btn" onclick="flowCanvas.resetView()" title="Reset View">⌂</button>
+                <button class="control-btn" onclick="flowCanvas.fitToView()" title="Fit All">⊞</button>
             </div>
             
             <div class="properties-panel" id="propertiesPanel">
@@ -538,270 +572,172 @@
                 this.isConnecting = false;
                 this.connectionStart = null;
                 this.tempLine = null;
-                this.canvasOffset = { x: 0, y: 0 };
+                
+                // Canvas panning properties
                 this.isPanning = false;
-                this.panStart = { x: 0, y: 0 };
-                this.canvasTransform = { x: 0, y: 0 };
+                this.panStartX = 0;
+                this.panStartY = 0;
+                this.canvasX = -2000; // Start centered in large canvas
+                this.canvasY = -2000;
+                this.zoom = 1;
+                this.minZoom = 0.1;
+                this.maxZoom = 2;
                 
                 this.initializeEventListeners();
                 this.addStartNode();
+                this.updateCanvasTransform();
             }
             
             initializeEventListeners() {
                 const canvas = document.getElementById('canvas');
+                const canvasViewport = document.getElementById('canvasViewport');
                 const canvasContainer = document.querySelector('.canvas-container');
                 const palette = document.querySelector('.node-palette');
-
+                
+                // Canvas panning functionality
+                canvasViewport.addEventListener('mousedown', (e) => {
+                    // Only start panning if space is held or middle mouse button
+                    if (e.button === 1 || (e.button === 0 && e.ctrlKey) || (e.button === 0 && this.spacePressed)) {
+                        e.preventDefault();
+                        this.startPanning(e);
+                    }
+                });
+                
+                canvasViewport.addEventListener('mousemove', (e) => {
+                    if (this.isPanning) {
+                        this.updatePanning(e);
+                    }
+                });
+                
+                canvasViewport.addEventListener('mouseup', (e) => {
+                    if (this.isPanning) {
+                        this.stopPanning();
+                    }
+                });
+                
+                canvasViewport.addEventListener('mouseleave', () => {
+                    if (this.isPanning) {
+                        this.stopPanning();
+                    }
+                });
+                
+                // Zoom with mouse wheel
+                canvasViewport.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                    this.zoomAt(e.clientX, e.clientY, delta);
+                });
+                
+                // Space key for panning mode
+                this.spacePressed = false;
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && !e.target.matches('input, textarea')) {
+                        e.preventDefault();
+                        this.spacePressed = true;
+                        canvasViewport.style.cursor = 'grab';
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    if (e.code === 'Space') {
+                        this.spacePressed = false;
+                        if (!this.isPanning) {
+                            canvasViewport.style.cursor = 'default';
+                        }
+                    }
+                });
+                
+                // Mouse-based drag and drop for better compatibility
                 let isDraggingFromPalette = false;
                 let draggedNodeType = null;
                 let dragPreview = null;
-
-                // Unified drag start handler for mouse and touch
-                const startDrag = (e, clientX, clientY) => {
-                    e.preventDefault();
-                    const target = e.target.closest('.palette-item');
-                    if (!target) return;
-
-                    isDraggingFromPalette = true;
-                    draggedNodeType = target.dataset.type;
-
-                    // Create drag preview
-                    dragPreview = document.createElement('div');
-                    dragPreview.className = 'drag-preview';
-                    dragPreview.textContent = target.textContent;
-                    dragPreview.style.cssText = `
-                        position: fixed;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        padding: 10px 15px;
-                        border-radius: 10px;
-                        font-weight: 600;
-                        font-size: 14px;
-                        pointer-events: none;
-                        z-index: 10000;
-                        transform: translate(-50%, -50%) scale(0.9);
-                        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                        opacity: 0.9;
-                    `;
-                    document.body.appendChild(dragPreview);
-                    dragPreview.style.left = clientX + 'px';
-                    dragPreview.style.top = clientY + 'px';
-
-                    // Visual feedback on palette item
-                    target.classList.add('dragging');
-                    document.body.style.cursor = 'grabbing';
-                    canvasContainer.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
-                };
-
-                // Unified drag move handler
-                const moveDrag = (e, clientX, clientY) => {
-                    if (!isDraggingFromPalette || !dragPreview) return;
-
-                    dragPreview.style.left = clientX + 'px';
-                    dragPreview.style.top = clientY + 'px';
-
-                    // Check if over canvas
-                    const rect = canvasContainer.getBoundingClientRect();
-                    if (clientX >= rect.left && clientX <= rect.right && 
-                        clientY >= rect.top && clientY <= rect.bottom) {
-                        canvasContainer.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
-                    } else {
-                        canvasContainer.style.backgroundColor = '';
-                    }
-                };
-
-                // Unified drag end handler
-                const endDrag = (e, clientX, clientY) => {
-                    if (!isDraggingFromPalette) return;
-
-                    const rect = canvas.getBoundingClientRect();
-                    if (clientX >= rect.left && clientX <= rect.right && 
-                        clientY >= rect.top && clientY <= rect.bottom) {
-                        // Adjust drop position for canvas transform
-                        const x = Math.max(20, clientX - rect.left - 100 - this.canvasTransform.x);
-                        const y = Math.max(20, clientY - rect.top - 50 - this.canvasTransform.y);
-                        this.createNode(draggedNodeType, x, y);
-                    }
-
-                    // Cleanup
-                    if (dragPreview) {
-                        dragPreview.remove();
-                        dragPreview = null;
-                    }
-                    document.querySelectorAll('.palette-item').forEach(item => {
-                        item.classList.remove('dragging');
-                    });
-                    canvasContainer.style.backgroundColor = '';
-                    document.body.style.cursor = '';
-                    isDraggingFromPalette = false;
-                    draggedNodeType = null;
-                };
-
-                // Mouse events for palette drag
+                
+                // Palette mouse events (more reliable than HTML5 drag/drop)
                 palette.addEventListener('mousedown', (e) => {
-                    startDrag(e, e.clientX, e.clientY);
+                    if (e.target.classList.contains('palette-item')) {
+                        e.preventDefault();
+                        isDraggingFromPalette = true;
+                        draggedNodeType = e.target.dataset.type;
+                        
+                        // Create drag preview
+                        dragPreview = document.createElement('div');
+                        dragPreview.className = 'drag-preview';
+                        dragPreview.textContent = e.target.textContent;
+                        dragPreview.style.cssText = `
+                            position: fixed;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            padding: 10px 15px;
+                            border-radius: 10px;
+                            font-weight: 600;
+                            font-size: 14px;
+                            pointer-events: none;
+                            z-index: 10000;
+                            transform: translate(-50%, -50%) scale(0.9);
+                            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                            opacity: 0.9;
+                        `;
+                        document.body.appendChild(dragPreview);
+                        
+                        // Visual feedback on original item
+                        e.target.style.opacity = '0.5';
+                        e.target.style.transform = 'scale(0.95)';
+                        
+                        document.body.style.cursor = 'grabbing';
+                    }
                 });
-
+                
+                // Global mouse move for drag preview
                 document.addEventListener('mousemove', (e) => {
-                    moveDrag(e, e.clientX, e.clientY);
+                    if (isDraggingFromPalette && dragPreview) {
+                        dragPreview.style.left = e.clientX + 'px';
+                        dragPreview.style.top = e.clientY + 'px';
+                        
+                        // Visual feedback for canvas
+                        const rect = canvasContainer.getBoundingClientRect();
+                        if (e.clientX >= rect.left && e.clientX <= rect.right && 
+                            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                            canvasContainer.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
+                        } else {
+                            canvasContainer.style.backgroundColor = '';
+                        }
+                    }
                 });
-
+                
+                // Global mouse up for drop
                 document.addEventListener('mouseup', (e) => {
-                    endDrag(e, e.clientX, e.clientY);
-                });
-
-                // Touch events for palette drag
-                palette.addEventListener('touchstart', (e) => {
-                    const touch = e.touches[0];
-                    startDrag(e, touch.clientX, touch.clientY);
-                });
-
-                document.addEventListener('touchmove', (e) => {
-                    const touch = e.touches[0];
-                    moveDrag(e, touch.clientX, touch.clientY);
-                });
-
-                document.addEventListener('touchend', (e) => {
-                    const touch = e.changedTouches[0];
-                    endDrag(e, touch.clientX, touch.clientY);
-                });
-
-                // Canvas panning mouse events
-                canvas.addEventListener('mousedown', (e) => {
-                    if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
-                        e.preventDefault();
-                        this.isPanning = true;
-                        this.panStart = {
-                            x: e.clientX - this.canvasTransform.x,
-                            y: e.clientY - this.canvasTransform.y
-                        };
-                        canvas.style.cursor = 'grabbing';
+                    if (isDraggingFromPalette) {
+                        const rect = canvasViewport.getBoundingClientRect();
+                        
+                        // Check if dropped on canvas
+                        if (e.clientX >= rect.left && e.clientX <= rect.right && 
+                            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                            // Convert screen coordinates to canvas coordinates
+                            const canvasX = (e.clientX - rect.left - this.canvasX) / this.zoom;
+                            const canvasY = (e.clientY - rect.top - this.canvasY) / this.zoom;
+                            this.createNode(draggedNodeType, Math.max(20, canvasX - 100), Math.max(20, canvasY - 50));
+                        }
+                        
+                        // Cleanup
+                        if (dragPreview) {
+                            dragPreview.remove();
+                            dragPreview = null;
+                        }
+                        
+                        // Reset visual states
+                        document.querySelectorAll('.palette-item').forEach(item => {
+                            item.style.opacity = '1';
+                            item.style.transform = '';
+                        });
+                        
+                        canvasContainer.style.backgroundColor = '';
+                        document.body.style.cursor = '';
+                        isDraggingFromPalette = false;
+                        draggedNodeType = null;
                     }
                 });
-
-                document.addEventListener('mousemove', (e) => {
-                    if (this.isPanning) {
-                        this.canvasTransform.x = e.clientX - this.panStart.x;
-                        this.canvasTransform.y = e.clientY - this.panStart.y;
-                        // Limit panning to canvas bounds
-                        this.canvasTransform.x = Math.min(0, Math.max(this.canvasTransform.x, -3500));
-                        this.canvasTransform.y = Math.min(0, Math.max(this.canvasTransform.y, -3500));
-                        canvas.style.transform = `translate(${this.canvasTransform.x}px, ${this.canvasTransform.y}px)`;
-                        this.renderConnections();
-                    }
-                });
-
-                document.addEventListener('mouseup', () => {
-                    if (this.isPanning) {
-                        this.isPanning = false;
-                        canvas.style.cursor = 'grab';
-                    }
-                });
-
-                // Canvas panning touch events
-                canvas.addEventListener('touchstart', (e) => {
-                    if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
-                        e.preventDefault();
-                        this.isPanning = true;
-                        const touch = e.touches[0];
-                        this.panStart = {
-                            x: touch.clientX - this.canvasTransform.x,
-                            y: touch.clientY - this.canvasTransform.y
-                        };
-                        canvas.style.cursor = 'grabbing';
-                    }
-                });
-
-                document.addEventListener('touchmove', (e) => {
-                    if (this.isPanning) {
-                        e.preventDefault();
-                        const touch = e.touches[0];
-                        this.canvasTransform.x = touch.clientX - this.panStart.x;
-                        this.canvasTransform.y = touch.clientY - this.panStart.y;
-                        // Limit panning to canvas bounds
-                        this.canvasTransform.x = Math.min(0, Math.max(this.canvasTransform.x, -3500));
-                        this.canvasTransform.y = Math.min(0, Math.max(this.canvasTransform.y, -3500));
-                        canvas.style.transform = `translate(${this.canvasTransform.x}px, ${this.canvasTransform.y}px)`;
-                        this.renderConnections();
-                    }
-                });
-
-                document.addEventListener('touchend', () => {
-                    if (this.isPanning) {
-                        this.isPanning = false;
-                        canvas.style.cursor = 'grab';
-                    }
-                });
-
-                // Fallback click-to-add
-                palette.addEventListener('click', (e) => {
-                    const target = e.target.closest('.palette-item');
-                    if (target && !isDraggingFromPalette) {
-                        const nodeType = target.dataset.type;
-                        const randomX = 200 + Math.random() * 300;
-                        const randomY = 150 + Math.random() * 200;
-                        this.createNode(nodeType, randomX, randomY);
-
-                        // Visual feedback
-                        target.style.transform = 'scale(0.95)';
-                        setTimeout(() => {
-                            target.style.transform = '';
-                        }, 150);
-                    }
-                });
-
-                // Canvas click events
-                canvas.addEventListener('click', (e) => {
-                    if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
-                        this.deselectAllNodes();
-                        this.hidePropertiesPanel();
-                    }
-                });
-
-                // Connection events
-                canvas.addEventListener('mousedown', (e) => {
-                    if (e.target.classList.contains('connection-point')) {
-                        this.startConnection(e.target, e);
-                    }
-                });
-
-                canvas.addEventListener('mousemove', (e) => {
-                    if (this.isConnecting) {
-                        this.updateTempLine(e);
-                    }
-                });
-
-                canvas.addEventListener('mouseup', (e) => {
-                    if (this.isConnecting) {
-                        this.endConnection(e.target);
-                    }
-                });
-
-                // Touch support for connections
-                canvas.addEventListener('touchstart', (e) => {
-                    const touch = e.touches[0];
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (target.classList.contains('connection-point')) {
-                        this.startConnection(target, e);
-                    }
-                });
-
-                canvas.addEventListener('touchmove', (e) => {
-                    if (this.isConnecting) {
-                        e.preventDefault();
-                        this.updateTempLine(e.touches[0]);
-                    }
-                });
-
-                canvas.addEventListener('touchend', (e) => {
-                    if (this.isConnecting) {
-                        const touch = e.changedTouches[0];
-                        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                        this.endConnection(target);
-                    }
-                });
-
-                // Fallback HTML5 drag and drop
+                
+                // HTML5 Drag and Drop as fallback
                 palette.addEventListener('dragstart', (e) => {
                     if (e.target.classList.contains('palette-item')) {
                         e.dataTransfer.setData('text/plain', e.target.dataset.type);
@@ -809,42 +745,204 @@
                         e.target.style.opacity = '0.5';
                     }
                 });
-
+                
                 palette.addEventListener('dragend', (e) => {
                     if (e.target.classList.contains('palette-item')) {
                         e.target.style.opacity = '1';
                     }
                 });
-
-                [canvas, canvasContainer].forEach(element => {
+                
+                // Canvas HTML5 drop events
+                [canvasViewport, canvasContainer].forEach(element => {
                     element.addEventListener('dragover', (e) => {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = 'copy';
                         element.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
                     });
-
+                    
                     element.addEventListener('dragleave', (e) => {
                         if (!element.contains(e.relatedTarget)) {
                             element.style.backgroundColor = '';
                         }
                     });
-
+                    
                     element.addEventListener('drop', (e) => {
                         e.preventDefault();
                         element.style.backgroundColor = '';
                         const nodeType = e.dataTransfer.getData('text/plain');
                         if (nodeType) {
-                            const rect = canvas.getBoundingClientRect();
-                            const x = Math.max(20, e.clientX - rect.left - 100 - this.canvasTransform.x);
-                            const y = Math.max(20, e.clientY - rect.top - 50 - this.canvasTransform.y);
-                            this.createNode(nodeType, x, y);
+                            const rect = canvasViewport.getBoundingClientRect();
+                            const canvasX = (e.clientX - rect.left - this.canvasX) / this.zoom;
+                            const canvasY = (e.clientY - rect.top - this.canvasY) / this.zoom;
+                            this.createNode(nodeType, Math.max(20, canvasX - 100), Math.max(20, canvasY - 50));
                         }
                     });
                 });
+                
+                // Click to add as final fallback
+                palette.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('palette-item') && !isDraggingFromPalette) {
+                        const nodeType = e.target.dataset.type;
+                        const randomX = 200 + Math.random() * 300;
+                        const randomY = 150 + Math.random() * 200;
+                        this.createNode(nodeType, randomX, randomY);
+                        
+                        // Visual feedback
+                        e.target.style.transform = 'scale(0.95)';
+                        setTimeout(() => {
+                            e.target.style.transform = '';
+                        }, 150);
+                    }
+                });
+                
+                // Canvas click events
+                canvas.addEventListener('click', (e) => {
+                    if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
+                        this.deselectAllNodes();
+                        this.hidePropertiesPanel();
+                    }
+                });
+                
+                // Connection events
+                canvas.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('connection-point')) {
+                        e.stopPropagation();
+                        this.startConnection(e.target, e);
+                    }
+                });
+                
+                canvas.addEventListener('mousemove', (e) => {
+                    if (this.isConnecting) {
+                        this.updateTempLine(e);
+                    }
+                });
+                
+                canvas.addEventListener('mouseup', (e) => {
+                    if (this.isConnecting) {
+                        this.endConnection(e.target);
+                    }
+                });
+            }
+            
+            // Canvas panning methods
+            startPanning(e) {
+                this.isPanning = true;
+                this.panStartX = e.clientX - this.canvasX;
+                this.panStartY = e.clientY - this.canvasY;
+                document.getElementById('canvasViewport').classList.add('panning');
+                document.getElementById('canvasViewport').style.cursor = 'grabbing';
+            }
+            
+            updatePanning(e) {
+                if (!this.isPanning) return;
+                
+                this.canvasX = e.clientX - this.panStartX;
+                this.canvasY = e.clientY - this.panStartY;
+                
+                this.updateCanvasTransform();
+            }
+            
+            stopPanning() {
+                this.isPanning = false;
+                const viewport = document.getElementById('canvasViewport');
+                viewport.classList.remove('panning');
+                viewport.style.cursor = this.spacePressed ? 'grab' : 'default';
+            }
+            
+            updateCanvasTransform() {
+                const canvas = document.getElementById('canvas');
+                canvas.style.transform = `translate(${this.canvasX}px, ${this.canvasY}px) scale(${this.zoom})`;
+            }
+            
+            zoomAt(clientX, clientY, factor) {
+                const viewport = document.getElementById('canvasViewport');
+                const rect = viewport.getBoundingClientRect();
+                
+                // Get point relative to viewport
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+                
+                // Calculate point in canvas coordinates before zoom
+                const canvasX = (x - this.canvasX) / this.zoom;
+                const canvasY = (y - this.canvasY) / this.zoom;
+                
+                // Apply zoom
+                const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * factor));
+                
+                if (newZoom !== this.zoom) {
+                    // Adjust pan to keep the point under cursor
+                    this.canvasX = x - canvasX * newZoom;
+                    this.canvasY = y - canvasY * newZoom;
+                    this.zoom = newZoom;
+                    
+                    this.updateCanvasTransform();
+                }
+            }
+            
+            zoomIn() {
+                const viewport = document.getElementById('canvasViewport');
+                const rect = viewport.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                this.zoomAt(rect.left + centerX, rect.top + centerY, 1.2);
+            }
+            
+            zoomOut() {
+                const viewport = document.getElementById('canvasViewport');
+                const rect = viewport.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                this.zoomAt(rect.left + centerX, rect.top + centerY, 0.8);
+            }
+            
+            resetView() {
+                this.canvasX = -2000;
+                this.canvasY = -2000;
+                this.zoom = 1;
+                this.updateCanvasTransform();
+            }
+            
+            fitToView() {
+                if (this.nodes.size === 0) return;
+                
+                // Calculate bounds of all nodes
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                
+                this.nodes.forEach(node => {
+                    minX = Math.min(minX, node.x);
+                    minY = Math.min(minY, node.y);
+                    maxX = Math.max(maxX, node.x + 300); // approximate node width
+                    maxY = Math.max(maxY, node.y + 150); // approximate node height
+                });
+                
+                // Add padding
+                const padding = 100;
+                minX -= padding;
+                minY -= padding;
+                maxX += padding;
+                maxY += padding;
+                
+                // Calculate required zoom and position
+                const viewport = document.getElementById('canvasViewport');
+                const rect = viewport.getBoundingClientRect();
+                
+                const contentWidth = maxX - minX;
+                const contentHeight = maxY - minY;
+                
+                const scaleX = rect.width / contentWidth;
+                const scaleY = rect.height / contentHeight;
+                
+                this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, Math.min(scaleX, scaleY)));
+                
+                // Center the content
+                this.canvasX = (rect.width - contentWidth * this.zoom) / 2 - minX * this.zoom;
+                this.canvasY = (rect.height - contentHeight * this.zoom) / 2 - minY * this.zoom;
+                
+                this.updateCanvasTransform();
             }
             
             addStartNode() {
-                this.createNode('start', 100, 100);
+                this.createNode('start', 2100, 2100); // Position in center of large canvas
             }
             
             createNode(type, x, y) {
@@ -895,17 +993,6 @@
                         !e.target.classList.contains('node-delete') &&
                         !e.target.classList.contains('node-input')) {
                         this.startDragging(node.id, e);
-                    }
-                });
-
-                // Touch support for node dragging
-                nodeElement.addEventListener('touchstart', (e) => {
-                    const touch = e.touches[0];
-                    const target = e.target;
-                    if (!target.classList.contains('connection-point') && 
-                        !target.classList.contains('node-delete') &&
-                        !target.classList.contains('node-input')) {
-                        this.startDragging(node.id, { clientX: touch.clientX, clientY: touch.clientY });
                     }
                 });
                 
@@ -1080,11 +1167,11 @@
             updateTempLine(event) {
                 if (!this.tempLine || !this.connectionStart) return;
                 
-                const canvas = document.getElementById('canvas');
-                const rect = canvas.getBoundingClientRect();
+                const viewport = document.getElementById('canvasViewport');
+                const rect = viewport.getBoundingClientRect();
                 const startPoint = this.getConnectionPointPosition(this.connectionStart.element);
-                const endX = (event.clientX || event.touches[0].clientX) - rect.left - this.canvasTransform.x;
-                const endY = (event.clientY || event.touches[0].clientY) - rect.top - this.canvasTransform.y;
+                const endX = (event.clientX - rect.left - this.canvasX) / this.zoom;
+                const endY = (event.clientY - rect.top - this.canvasY) / this.zoom;
                 
                 const path = this.createPath(startPoint.x, startPoint.y, endX, endY);
                 this.tempLine.setAttribute('d', path);
@@ -1185,11 +1272,12 @@
             
             getConnectionPointPosition(element) {
                 const rect = element.getBoundingClientRect();
-                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                const viewport = document.getElementById('canvasViewport');
+                const viewportRect = viewport.getBoundingClientRect();
                 
                 return {
-                    x: rect.left + rect.width / 2 - canvasRect.left - this.canvasTransform.x,
-                    y: rect.top + rect.height / 2 - canvasRect.top - this.canvasTransform.y
+                    x: (rect.left + rect.width / 2 - viewportRect.left - this.canvasX) / this.zoom,
+                    y: (rect.top + rect.height / 2 - viewportRect.top - this.canvasY) / this.zoom
                 };
             }
             
@@ -1270,31 +1358,34 @@
                 
                 nodeElement.classList.add('dragging');
                 
-                const startX = (event.clientX || event.touches[0].clientX) - node.x;
-                const startY = (event.clientY || event.touches[0].clientY) - node.y;
+                // Convert screen coordinates to canvas coordinates
+                const viewport = document.getElementById('canvasViewport');
+                const rect = viewport.getBoundingClientRect();
+                const canvasX = (event.clientX - rect.left - this.canvasX) / this.zoom;
+                const canvasY = (event.clientY - rect.top - this.canvasY) / this.zoom;
                 
-                const onMove = (e) => {
-                    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                    node.x = clientX - startX - this.canvasTransform.x;
-                    node.y = clientY - startY - this.canvasTransform.y;
+                const startX = canvasX - node.x;
+                const startY = canvasY - node.y;
+                
+                const onMouseMove = (e) => {
+                    const newCanvasX = (e.clientX - rect.left - this.canvasX) / this.zoom;
+                    const newCanvasY = (e.clientY - rect.top - this.canvasY) / this.zoom;
+                    
+                    node.x = newCanvasX - startX;
+                    node.y = newCanvasY - startY;
                     nodeElement.style.left = node.x + 'px';
                     nodeElement.style.top = node.y + 'px';
                     this.renderConnections();
                 };
                 
-                const onEnd = () => {
+                const onMouseUp = () => {
                     nodeElement.classList.remove('dragging');
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('mouseup', onEnd);
-                    document.removeEventListener('touchmove', onMove);
-                    document.removeEventListener('touchend', onEnd);
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
                 };
                 
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onEnd);
-                document.addEventListener('touchmove', onMove);
-                document.addEventListener('touchend', onEnd);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
             }
             
             updateNodeData(nodeId, key, value) {
@@ -1361,8 +1452,6 @@
                 if (confirm('Are you sure you want to clear the entire canvas?')) {
                     this.nodes.clear();
                     this.connections = [];
-                    this.canvasTransform = { x: 0, y: 0 }; // Reset transform
-                    document.getElementById('canvas').style.transform = 'translate(0px, 0px)';
                     document.getElementById('canvas').innerHTML = `
                         <svg class="svg-connections" id="svgConnections">
                             <defs>
