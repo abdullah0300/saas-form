@@ -17,6 +17,7 @@
             color: #fff;
             overflow: hidden;
             height: 100vh;
+            touch-action: none; /* Prevent default touch behaviors */
         }
         
         .toolbar {
@@ -104,6 +105,7 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+            touch-action: manipulation; /* Better touch handling */
         }
         
         .palette-item::before {
@@ -127,8 +129,9 @@
             border-color: rgba(255, 255, 255, 0.3);
         }
         
-        .palette-item:active {
+        .palette-item:active, .palette-item.dragging {
             cursor: grabbing;
+            transform: scale(0.95);
         }
         
         .canvas-container {
@@ -144,23 +147,15 @@
         }
         
         .canvas {
-            width: 4000px; /* Increased canvas size */
-            height: 4000px; /* Increased canvas size */
+            width: 4000px; /* Large canvas size */
+            height: 4000px;
             position: relative;
             cursor: grab;
+            transform-origin: 0 0;
         }
         
-        .canvas.panning {
+        .canvas:active {
             cursor: grabbing;
-        }
-        
-        .canvas-content {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.1s ease-out;
         }
         
         .canvas-grid {
@@ -427,6 +422,21 @@
             }
         }
         
+        .drag-preview {
+            position: fixed;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%) scale(0.9);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            opacity: 0.9;
+        }
+        
         @media (max-width: 768px) {
             .sidebar {
                 width: 250px;
@@ -484,33 +494,30 @@
                     • Click nodes to edit properties<br>
                     • Drag from connection points to link<br>
                     • Yes/No nodes have separate outputs<br>
-                    • Green = Yes, Red = No<br>
-                    • <strong>Drag empty canvas to pan around</strong>
+                    • Green = Yes, Red = No
                 </div>
             </div>
         </div>
         
         <div class="canvas-container">
+            <div class="canvas-grid"></div>
             <div class="canvas" id="canvas">
-                <div class="canvas-content" id="canvasContent">
-                    <div class="canvas-grid"></div>
-                    <svg class="svg-connections" id="svgConnections">
-                        <defs>
-                            <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                                    refX="10" refY="3.5" orient="auto" class="arrow-marker">
-                                <polygon points="0 0, 10 3.5, 0 7" />
-                            </marker>
-                            <marker id="arrowhead-yes" markerWidth="10" markerHeight="7" 
-                                    refX="10" refY="3.5" orient="auto" class="arrow-marker yes">
-                                <polygon points="0 0, 10 3.5, 0 7" />
-                            </marker>
-                            <marker id="arrowhead-no" markerWidth="10" markerHeight="7" 
-                                    refX="10" refY="3.5" orient="auto" class="arrow-marker no">
-                                <polygon points="0 0, 10 3.5, 0 7" />
-                            </marker>
-                        </defs>
-                    </svg>
-                </div>
+                <svg class="svg-connections" id="svgConnections">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                refX="10" refY="3.5" orient="auto" class="arrow-marker">
+                            <polygon points="0 0, 10 3.5, 0 7" />
+                        </marker>
+                        <marker id="arrowhead-yes" markerWidth="10" markerHeight="7" 
+                                refX="10" refY="3.5" orient="auto" class="arrow-marker yes">
+                            <polygon points="0 0, 10 3.5, 0 7" />
+                        </marker>
+                        <marker id="arrowhead-no" markerWidth="10" markerHeight="7" 
+                                refX="10" refY="3.5" orient="auto" class="arrow-marker no">
+                            <polygon points="0 0, 10 3.5, 0 7" />
+                        </marker>
+                    </defs>
+                </svg>
             </div>
             
             <div class="properties-panel" id="propertiesPanel">
@@ -532,11 +539,9 @@
                 this.connectionStart = null;
                 this.tempLine = null;
                 this.canvasOffset = { x: 0, y: 0 };
-                
-                // Canvas panning variables
                 this.isPanning = false;
                 this.panStart = { x: 0, y: 0 };
-                this.panOffset = { x: 0, y: 0 };
+                this.canvasTransform = { x: 0, y: 0 };
                 
                 this.initializeEventListeners();
                 this.addStartNode();
@@ -544,141 +549,259 @@
             
             initializeEventListeners() {
                 const canvas = document.getElementById('canvas');
-                const canvasContent = document.getElementById('canvasContent');
                 const canvasContainer = document.querySelector('.canvas-container');
                 const palette = document.querySelector('.node-palette');
-                
-                // Canvas panning functionality
-                canvas.addEventListener('mousedown', (e) => {
-                    // Only start panning if clicked on canvas background (not on nodes or connection points)
-                    if (e.target === canvas || e.target.classList.contains('canvas-grid') || e.target.classList.contains('svg-connections')) {
-                        this.isPanning = true;
-                        this.panStart.x = e.clientX - this.panOffset.x;
-                        this.panStart.y = e.clientY - this.panOffset.y;
-                        canvas.classList.add('panning');
-                        e.preventDefault();
-                    }
-                });
-                
-                canvas.addEventListener('mousemove', (e) => {
-                    if (this.isPanning) {
-                        this.panOffset.x = e.clientX - this.panStart.x;
-                        this.panOffset.y = e.clientY - this.panStart.y;
-                        // Clamp panning to prevent moving too far
-                        this.panOffset.x = Math.min(0, Math.max(this.panOffset.x, -3500)); // Adjust based on canvas size
-                        this.panOffset.y = Math.min(0, Math.max(this.panOffset.y, -3500));
-                        canvasContent.style.transform = `translate(${this.panOffset.x}px, ${this.panOffset.y}px)`;
-                        this.renderConnections(); // Update connections during panning
-                        e.preventDefault();
-                    }
-                });
-                
-                canvas.addEventListener('mouseup', () => {
-                    this.isPanning = false;
-                    canvas.classList.remove('panning');
-                });
-                
-                canvas.addEventListener('mouseleave', () => {
-                    this.isPanning = false;
-                    canvas.classList.remove('panning');
-                });
-                
-                // Prevent context menu on canvas
-                canvas.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                });
-                
-                // Mouse-based drag and drop for better compatibility
+
                 let isDraggingFromPalette = false;
                 let draggedNodeType = null;
                 let dragPreview = null;
-                
-                // Palette mouse events (more reliable than HTML5 drag/drop)
-                palette.addEventListener('mousedown', (e) => {
-                    if (e.target.classList.contains('palette-item')) {
-                        e.preventDefault();
-                        isDraggingFromPalette = true;
-                        draggedNodeType = e.target.dataset.type;
-                        
-                        // Create drag preview
-                        dragPreview = document.createElement('div');
-                        dragPreview.className = 'drag-preview';
-                        dragPreview.textContent = e.target.textContent;
-                        dragPreview.style.cssText = `
-                            position: fixed;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            padding: 10px 15px;
-                            border-radius: 10px;
-                            font-weight: 600;
-                            font-size: 14px;
-                            pointer-events: none;
-                            z-index: 10000;
-                            transform: translate(-50%, -50%) scale(0.9);
-                            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                            opacity: 0.9;
-                        `;
-                        document.body.appendChild(dragPreview);
-                        
-                        // Visual feedback on original item
-                        e.target.style.opacity = '0.5';
-                        e.target.style.transform = 'scale(0.95)';
-                        
-                        document.body.style.cursor = 'grabbing';
-                    }
-                });
-                
-                // Global mouse move for drag preview
-                document.addEventListener('mousemove', (e) => {
-                    if (isDraggingFromPalette && dragPreview) {
-                        dragPreview.style.left = e.clientX + 'px';
-                        dragPreview.style.top = e.clientY + 'px';
-                        
-                        // Visual feedback for canvas
-                        const rect = canvasContainer.getBoundingClientRect();
-                        if (e.clientX >= rect.left && e.clientX <= rect.right && 
-                            e.clientY >= rect.top && e.clientY <= rect.bottom) {
-                            canvasContainer.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
-                        } else {
-                            canvasContainer.style.backgroundColor = '';
-                        }
-                    }
-                });
-                
-                // Global mouse up for drop
-                document.addEventListener('mouseup', (e) => {
-                    if (isDraggingFromPalette) {
-                        const rect = canvas.getBoundingClientRect();
-                        
-                        // Check if dropped on canvas
-                        if (e.clientX >= rect.left && e.clientX <= rect.right && 
-                            e.clientY >= rect.top && e.clientY <= rect.bottom) {
-                            // Account for canvas panning when calculating position
-                            const x = Math.max(20, e.clientX - rect.left - 100 - this.panOffset.x);
-                            const y = Math.max(20, e.clientY - rect.top - 50 - this.panOffset.y);
-                            this.createNode(draggedNodeType, x, y);
-                        }
-                        
-                        // Cleanup
-                        if (dragPreview) {
-                            dragPreview.remove();
-                            dragPreview = null;
-                        }
-                        
-                        // Reset visual states
-                        document.querySelectorAll('.palette-item').forEach(item => {
-                            item.style.opacity = '1';
-                            item.style.transform = '';
-                        });
-                        
+
+                // Unified drag start handler for mouse and touch
+                const startDrag = (e, clientX, clientY) => {
+                    e.preventDefault();
+                    const target = e.target.closest('.palette-item');
+                    if (!target) return;
+
+                    isDraggingFromPalette = true;
+                    draggedNodeType = target.dataset.type;
+
+                    // Create drag preview
+                    dragPreview = document.createElement('div');
+                    dragPreview.className = 'drag-preview';
+                    dragPreview.textContent = target.textContent;
+                    dragPreview.style.cssText = `
+                        position: fixed;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 10px 15px;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        font-size: 14px;
+                        pointer-events: none;
+                        z-index: 10000;
+                        transform: translate(-50%, -50%) scale(0.9);
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                        opacity: 0.9;
+                    `;
+                    document.body.appendChild(dragPreview);
+                    dragPreview.style.left = clientX + 'px';
+                    dragPreview.style.top = clientY + 'px';
+
+                    // Visual feedback on palette item
+                    target.classList.add('dragging');
+                    document.body.style.cursor = 'grabbing';
+                    canvasContainer.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
+                };
+
+                // Unified drag move handler
+                const moveDrag = (e, clientX, clientY) => {
+                    if (!isDraggingFromPalette || !dragPreview) return;
+
+                    dragPreview.style.left = clientX + 'px';
+                    dragPreview.style.top = clientY + 'px';
+
+                    // Check if over canvas
+                    const rect = canvasContainer.getBoundingClientRect();
+                    if (clientX >= rect.left && clientX <= rect.right && 
+                        clientY >= rect.top && clientY <= rect.bottom) {
+                        canvasContainer.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
+                    } else {
                         canvasContainer.style.backgroundColor = '';
-                        document.body.style.cursor = '';
-                        isDraggingFromPalette = false;
-                        draggedNodeType = null;
+                    }
+                };
+
+                // Unified drag end handler
+                const endDrag = (e, clientX, clientY) => {
+                    if (!isDraggingFromPalette) return;
+
+                    const rect = canvas.getBoundingClientRect();
+                    if (clientX >= rect.left && clientX <= rect.right && 
+                        clientY >= rect.top && clientY <= rect.bottom) {
+                        // Adjust drop position for canvas transform
+                        const x = Math.max(20, clientX - rect.left - 100 - this.canvasTransform.x);
+                        const y = Math.max(20, clientY - rect.top - 50 - this.canvasTransform.y);
+                        this.createNode(draggedNodeType, x, y);
+                    }
+
+                    // Cleanup
+                    if (dragPreview) {
+                        dragPreview.remove();
+                        dragPreview = null;
+                    }
+                    document.querySelectorAll('.palette-item').forEach(item => {
+                        item.classList.remove('dragging');
+                    });
+                    canvasContainer.style.backgroundColor = '';
+                    document.body.style.cursor = '';
+                    isDraggingFromPalette = false;
+                    draggedNodeType = null;
+                };
+
+                // Mouse events for palette drag
+                palette.addEventListener('mousedown', (e) => {
+                    startDrag(e, e.clientX, e.clientY);
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    moveDrag(e, e.clientX, e.clientY);
+                });
+
+                document.addEventListener('mouseup', (e) => {
+                    endDrag(e, e.clientX, e.clientY);
+                });
+
+                // Touch events for palette drag
+                palette.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    startDrag(e, touch.clientX, touch.clientY);
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    const touch = e.touches[0];
+                    moveDrag(e, touch.clientX, touch.clientY);
+                });
+
+                document.addEventListener('touchend', (e) => {
+                    const touch = e.changedTouches[0];
+                    endDrag(e, touch.clientX, touch.clientY);
+                });
+
+                // Canvas panning mouse events
+                canvas.addEventListener('mousedown', (e) => {
+                    if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
+                        e.preventDefault();
+                        this.isPanning = true;
+                        this.panStart = {
+                            x: e.clientX - this.canvasTransform.x,
+                            y: e.clientY - this.canvasTransform.y
+                        };
+                        canvas.style.cursor = 'grabbing';
                     }
                 });
-                
-                // HTML5 Drag and Drop as fallback
+
+                document.addEventListener('mousemove', (e) => {
+                    if (this.isPanning) {
+                        this.canvasTransform.x = e.clientX - this.panStart.x;
+                        this.canvasTransform.y = e.clientY - this.panStart.y;
+                        // Limit panning to canvas bounds
+                        this.canvasTransform.x = Math.min(0, Math.max(this.canvasTransform.x, -3500));
+                        this.canvasTransform.y = Math.min(0, Math.max(this.canvasTransform.y, -3500));
+                        canvas.style.transform = `translate(${this.canvasTransform.x}px, ${this.canvasTransform.y}px)`;
+                        this.renderConnections();
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (this.isPanning) {
+                        this.isPanning = false;
+                        canvas.style.cursor = 'grab';
+                    }
+                });
+
+                // Canvas panning touch events
+                canvas.addEventListener('touchstart', (e) => {
+                    if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
+                        e.preventDefault();
+                        this.isPanning = true;
+                        const touch = e.touches[0];
+                        this.panStart = {
+                            x: touch.clientX - this.canvasTransform.x,
+                            y: touch.clientY - this.canvasTransform.y
+                        };
+                        canvas.style.cursor = 'grabbing';
+                    }
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    if (this.isPanning) {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        this.canvasTransform.x = touch.clientX - this.panStart.x;
+                        this.canvasTransform.y = touch.clientY - this.panStart.y;
+                        // Limit panning to canvas bounds
+                        this.canvasTransform.x = Math.min(0, Math.max(this.canvasTransform.x, -3500));
+                        this.canvasTransform.y = Math.min(0, Math.max(this.canvasTransform.y, -3500));
+                        canvas.style.transform = `translate(${this.canvasTransform.x}px, ${this.canvasTransform.y}px)`;
+                        this.renderConnections();
+                    }
+                });
+
+                document.addEventListener('touchend', () => {
+                    if (this.isPanning) {
+                        this.isPanning = false;
+                        canvas.style.cursor = 'grab';
+                    }
+                });
+
+                // Fallback click-to-add
+                palette.addEventListener('click', (e) => {
+                    const target = e.target.closest('.palette-item');
+                    if (target && !isDraggingFromPalette) {
+                        const nodeType = target.dataset.type;
+                        const randomX = 200 + Math.random() * 300;
+                        const randomY = 150 + Math.random() * 200;
+                        this.createNode(nodeType, randomX, randomY);
+
+                        // Visual feedback
+                        target.style.transform = 'scale(0.95)';
+                        setTimeout(() => {
+                            target.style.transform = '';
+                        }, 150);
+                    }
+                });
+
+                // Canvas click events
+                canvas.addEventListener('click', (e) => {
+                    if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
+                        this.deselectAllNodes();
+                        this.hidePropertiesPanel();
+                    }
+                });
+
+                // Connection events
+                canvas.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('connection-point')) {
+                        this.startConnection(e.target, e);
+                    }
+                });
+
+                canvas.addEventListener('mousemove', (e) => {
+                    if (this.isConnecting) {
+                        this.updateTempLine(e);
+                    }
+                });
+
+                canvas.addEventListener('mouseup', (e) => {
+                    if (this.isConnecting) {
+                        this.endConnection(e.target);
+                    }
+                });
+
+                // Touch support for connections
+                canvas.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (target.classList.contains('connection-point')) {
+                        this.startConnection(target, e);
+                    }
+                });
+
+                canvas.addEventListener('touchmove', (e) => {
+                    if (this.isConnecting) {
+                        e.preventDefault();
+                        this.updateTempLine(e.touches[0]);
+                    }
+                });
+
+                canvas.addEventListener('touchend', (e) => {
+                    if (this.isConnecting) {
+                        const touch = e.changedTouches[0];
+                        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                        this.endConnection(target);
+                    }
+                });
+
+                // Fallback HTML5 drag and drop
                 palette.addEventListener('dragstart', (e) => {
                     if (e.target.classList.contains('palette-item')) {
                         e.dataTransfer.setData('text/plain', e.target.dataset.type);
@@ -686,82 +809,37 @@
                         e.target.style.opacity = '0.5';
                     }
                 });
-                
+
                 palette.addEventListener('dragend', (e) => {
                     if (e.target.classList.contains('palette-item')) {
                         e.target.style.opacity = '1';
                     }
                 });
-                
-                // Canvas HTML5 drop events
+
                 [canvas, canvasContainer].forEach(element => {
                     element.addEventListener('dragover', (e) => {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = 'copy';
                         element.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
                     });
-                    
+
                     element.addEventListener('dragleave', (e) => {
                         if (!element.contains(e.relatedTarget)) {
                             element.style.backgroundColor = '';
                         }
                     });
-                    
+
                     element.addEventListener('drop', (e) => {
                         e.preventDefault();
                         element.style.backgroundColor = '';
                         const nodeType = e.dataTransfer.getData('text/plain');
                         if (nodeType) {
                             const rect = canvas.getBoundingClientRect();
-                            // Account for canvas panning when calculating position
-                            const x = Math.max(20, e.clientX - rect.left - 100 - this.panOffset.x);
-                            const y = Math.max(20, e.clientY - rect.top - 50 - this.panOffset.y);
+                            const x = Math.max(20, e.clientX - rect.left - 100 - this.canvasTransform.x);
+                            const y = Math.max(20, e.clientY - rect.top - 50 - this.canvasTransform.y);
                             this.createNode(nodeType, x, y);
                         }
                     });
-                });
-                
-                // Click to add as final fallback
-                palette.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('palette-item') && !isDraggingFromPalette) {
-                        const nodeType = e.target.dataset.type;
-                        const randomX = 200 + Math.random() * 300;
-                        const randomY = 150 + Math.random() * 200;
-                        this.createNode(nodeType, randomX, randomY);
-                        
-                        // Visual feedback
-                        e.target.style.transform = 'scale(0.95)';
-                        setTimeout(() => {
-                            e.target.style.transform = '';
-                        }, 150);
-                    }
-                });
-                
-                // Canvas click events - only trigger when not panning
-                canvas.addEventListener('click', (e) => {
-                    if (!this.isPanning && (e.target === canvas || e.target.classList.contains('canvas-grid') || e.target.classList.contains('svg-connections'))) {
-                        this.deselectAllNodes();
-                        this.hidePropertiesPanel();
-                    }
-                });
-                
-                // Connection events
-                canvas.addEventListener('mousedown', (e) => {
-                    if (e.target.classList.contains('connection-point')) {
-                        this.startConnection(e.target, e);
-                    }
-                });
-                
-                canvas.addEventListener('mousemove', (e) => {
-                    if (this.isConnecting) {
-                        this.updateTempLine(e);
-                    }
-                });
-                
-                canvas.addEventListener('mouseup', (e) => {
-                    if (this.isConnecting) {
-                        this.endConnection(e.target);
-                    }
                 });
             }
             
@@ -819,8 +897,19 @@
                         this.startDragging(node.id, e);
                     }
                 });
+
+                // Touch support for node dragging
+                nodeElement.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    const target = e.target;
+                    if (!target.classList.contains('connection-point') && 
+                        !target.classList.contains('node-delete') &&
+                        !target.classList.contains('node-input')) {
+                        this.startDragging(node.id, { clientX: touch.clientX, clientY: touch.clientY });
+                    }
+                });
                 
-                document.getElementById('canvasContent').appendChild(nodeElement);
+                document.getElementById('canvas').appendChild(nodeElement);
                 this.addConnectionPoints(nodeElement, node.type);
             }
             
@@ -994,8 +1083,8 @@
                 const canvas = document.getElementById('canvas');
                 const rect = canvas.getBoundingClientRect();
                 const startPoint = this.getConnectionPointPosition(this.connectionStart.element);
-                const endX = event.clientX - rect.left - this.panOffset.x;
-                const endY = event.clientY - rect.top - this.panOffset.y;
+                const endX = (event.clientX || event.touches[0].clientX) - rect.left - this.canvasTransform.x;
+                const endY = (event.clientY || event.touches[0].clientY) - rect.top - this.canvasTransform.y;
                 
                 const path = this.createPath(startPoint.x, startPoint.y, endX, endY);
                 this.tempLine.setAttribute('d', path);
@@ -1099,8 +1188,8 @@
                 const canvasRect = document.getElementById('canvas').getBoundingClientRect();
                 
                 return {
-                    x: rect.left + rect.width / 2 - canvasRect.left - this.panOffset.x,
-                    y: rect.top + rect.height / 2 - canvasRect.top - this.panOffset.y
+                    x: rect.left + rect.width / 2 - canvasRect.left - this.canvasTransform.x,
+                    y: rect.top + rect.height / 2 - canvasRect.top - this.canvasTransform.y
                 };
             }
             
@@ -1181,25 +1270,31 @@
                 
                 nodeElement.classList.add('dragging');
                 
-                const startX = event.clientX - node.x;
-                const startY = event.clientY - node.y;
+                const startX = (event.clientX || event.touches[0].clientX) - node.x;
+                const startY = (event.clientY || event.touches[0].clientY) - node.y;
                 
-                const onMouseMove = (e) => {
-                    node.x = e.clientX - startX - this.panOffset.x;
-                    node.y = e.clientY - startY - this.panOffset.y;
+                const onMove = (e) => {
+                    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                    node.x = clientX - startX - this.canvasTransform.x;
+                    node.y = clientY - startY - this.canvasTransform.y;
                     nodeElement.style.left = node.x + 'px';
                     nodeElement.style.top = node.y + 'px';
                     this.renderConnections();
                 };
                 
-                const onMouseUp = () => {
+                const onEnd = () => {
                     nodeElement.classList.remove('dragging');
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onEnd);
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('touchend', onEnd);
                 };
                 
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+                document.addEventListener('touchmove', onMove);
+                document.addEventListener('touchend', onEnd);
             }
             
             updateNodeData(nodeId, key, value) {
@@ -1266,10 +1361,9 @@
                 if (confirm('Are you sure you want to clear the entire canvas?')) {
                     this.nodes.clear();
                     this.connections = [];
-                    this.panOffset = { x: 0, y: 0 };
-                    document.getElementById('canvasContent').style.transform = 'translate(0px, 0px)';
-                    document.getElementById('canvasContent').innerHTML = `
-                        <div class="canvas-grid"></div>
+                    this.canvasTransform = { x: 0, y: 0 }; // Reset transform
+                    document.getElementById('canvas').style.transform = 'translate(0px, 0px)';
+                    document.getElementById('canvas').innerHTML = `
                         <svg class="svg-connections" id="svgConnections">
                             <defs>
                                 <marker id="arrowhead" markerWidth="10" markerHeight="7" 
@@ -1298,8 +1392,7 @@
                         id,
                         ...node
                     })),
-                    connections: this.connections,
-                    panOffset: this.panOffset
+                    connections: this.connections
                 };
                 
                 const dataStr = JSON.stringify(flowData, null, 2);
