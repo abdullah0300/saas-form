@@ -12,8 +12,8 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a2e;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0f0f23;
             color: #fff;
             overflow: hidden;
             height: 100vh;
@@ -49,15 +49,33 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-transform: uppercase;
             letter-spacing: 1px;
             backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
         }
         
         .btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
         }
@@ -69,10 +87,11 @@
         
         .sidebar {
             width: 300px;
-            background: #16213e;
+            background: rgba(22, 33, 62, 0.95);
             padding: 25px;
             box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
             overflow-y: auto;
+            backdrop-filter: blur(10px);
         }
         
         .sidebar h3 {
@@ -94,16 +113,14 @@
             padding: 15px;
             border-radius: 15px;
             cursor: grab;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-align: center;
             font-weight: 600;
             border: 2px solid transparent;
             position: relative;
             overflow: hidden;
             user-select: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
+            transform-origin: center;
         }
         
         .palette-item::before {
@@ -113,8 +130,8 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.6s;
         }
         
         .palette-item:hover::before {
@@ -122,25 +139,26 @@
         }
         
         .palette-item:hover {
-            transform: translateY(-3px);
+            transform: translateY(-3px) scale(1.02);
             box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
             border-color: rgba(255, 255, 255, 0.3);
         }
         
         .palette-item:active {
             cursor: grabbing;
+            transform: scale(0.95);
         }
         
         .canvas-container {
             flex: 1;
             position: relative;
-            background: 
-                radial-gradient(circle at 25% 25%, #2d3748 0%, transparent 50%),
-                radial-gradient(circle at 75% 75%, #4a5568 0%, transparent 50%),
-                #1a202c;
-            background-size: 100px 100px;
+            background: #0a0a0a;
             overflow: hidden;
             transition: background-color 0.3s ease;
+        }
+        
+        .canvas-container.drag-over {
+            background: radial-gradient(circle at center, rgba(79, 172, 254, 0.1) 0%, transparent 70%);
         }
         
         .canvas-viewport {
@@ -161,7 +179,8 @@
             position: absolute;
             top: 0;
             left: 0;
-            transition: transform 0.1s ease-out;
+            transform-origin: 0 0;
+            will-change: transform;
         }
         
         .canvas-grid {
@@ -170,17 +189,31 @@
             left: 0;
             width: 100%;
             height: 100%;
-            opacity: 0.1;
+            opacity: 0.05;
             background-image: 
                 linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+        
+        .canvas-grid-fine {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.02;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 10px 10px;
             pointer-events: none;
         }
         
         .flow-node {
             position: absolute;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.98);
             color: #333;
             border-radius: 15px;
             padding: 20px;
@@ -189,24 +222,54 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             cursor: move;
             border: 3px solid transparent;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(10px);
+            transform-origin: center;
+            will-change: transform;
+        }
+        
+        .flow-node::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 15px;
+            padding: 3px;
+            background: linear-gradient(45deg, #4facfe, #00f2fe, #667eea, #764ba2);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .flow-node:hover::before {
+            opacity: 0.5;
+        }
+        
+        .flow-node.selected::before {
+            opacity: 1;
         }
         
         .flow-node:hover {
             transform: translateY(-2px);
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-            border-color: #4facfe;
         }
         
         .flow-node.selected {
-            border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3); }
+            50% { box-shadow: 0 0 0 8px rgba(102, 126, 234, 0.1); }
+            100% { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3); }
         }
         
         .flow-node.dragging {
-            transform: rotate(5deg) scale(1.05);
+            cursor: grabbing;
             z-index: 1000;
+            transition: none;
+            animation: none;
         }
         
         .node-header {
@@ -238,12 +301,15 @@
             border-radius: 50%;
             cursor: pointer;
             font-weight: bold;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .node-delete:hover {
             background: #ff3742;
-            transform: scale(1.1);
+            transform: scale(1.1) rotate(90deg);
         }
         
         .node-content {
@@ -257,12 +323,15 @@
             border-radius: 8px;
             font-size: 14px;
             margin-bottom: 10px;
-            transition: border-color 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.8);
         }
         
         .node-input:focus {
             outline: none;
             border-color: #4facfe;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
         }
         
         .checkbox-options {
@@ -277,6 +346,12 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .option-input:focus {
+            outline: none;
+            border-color: #4facfe;
         }
         
         .add-option {
@@ -288,6 +363,12 @@
             cursor: pointer;
             font-size: 12px;
             margin-top: 5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .add-option:hover {
+            background: #239a3b;
+            transform: translateY(-1px);
         }
         
         .connection-points {
@@ -295,45 +376,74 @@
         }
         
         .connection-point {
-            width: 12px;
-            height: 12px;
+            width: 16px;
+            height: 16px;
             background: #4facfe;
             border-radius: 50%;
             position: absolute;
             cursor: crosshair;
-            border: 2px solid white;
-            transition: all 0.3s ease;
+            border: 3px solid white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 10;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .connection-point::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(79, 172, 254, 0.3) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .connection-point:hover::before {
+            opacity: 1;
         }
         
         .connection-point:hover {
-            transform: scale(1.5);
+            transform: scale(1.3);
             background: #667eea;
-            box-shadow: 0 0 10px rgba(79, 172, 254, 0.6);
+            box-shadow: 0 0 20px rgba(79, 172, 254, 0.6);
         }
         
         .connection-point.output {
-            right: -6px;
+            right: -8px;
             top: 50%;
             transform: translateY(-50%);
         }
         
         .connection-point.input {
-            left: -6px;
+            left: -8px;
             top: 50%;
             transform: translateY(-50%);
         }
         
         .connection-point.yes {
-            right: -6px;
+            right: -8px;
             top: 30%;
             background: #28a745;
         }
         
         .connection-point.no {
-            right: -6px;
+            right: -8px;
             top: 70%;
             background: #ff4757;
+        }
+        
+        .connection-point.connecting {
+            animation: connectionPulse 1s infinite;
+        }
+        
+        @keyframes connectionPulse {
+            0% { transform: scale(1) translateY(-50%); }
+            50% { transform: scale(1.5) translateY(-50%); }
+            100% { transform: scale(1) translateY(-50%); }
         }
         
         .svg-connections {
@@ -351,7 +461,9 @@
             stroke-width: 3;
             fill: none;
             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-            animation: dashFlow 2s linear infinite;
+            stroke-dasharray: 10, 5;
+            animation: dashFlow 30s linear infinite;
+            transition: d 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .connection-line.yes-connection {
@@ -364,7 +476,7 @@
         
         @keyframes dashFlow {
             to {
-                stroke-dashoffset: -20;
+                stroke-dashoffset: -150;
             }
         }
         
@@ -382,9 +494,17 @@
         
         .temp-line {
             stroke: #ffd93d;
-            stroke-width: 2;
+            stroke-width: 3;
             stroke-dasharray: 5,5;
             fill: none;
+            filter: drop-shadow(0 2px 8px rgba(255, 217, 61, 0.6));
+            animation: tempLineDash 0.5s linear infinite;
+        }
+        
+        @keyframes tempLineDash {
+            to {
+                stroke-dashoffset: -10;
+            }
         }
         
         .mini-map {
@@ -397,6 +517,7 @@
             border-radius: 10px;
             border: 2px solid rgba(255, 255, 255, 0.2);
             overflow: hidden;
+            backdrop-filter: blur(10px);
         }
         
         .properties-panel {
@@ -410,22 +531,15 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(10px);
             display: none;
+            transform: translateX(20px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .properties-panel.show {
             display: block;
-            animation: slideIn 0.3s ease;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            transform: translateX(0);
+            opacity: 1;
         }
         
         .canvas-controls {
@@ -450,14 +564,115 @@
             align-items: center;
             justify-content: center;
             font-size: 16px;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .control-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(79, 172, 254, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+        
+        .control-btn:hover::before {
+            width: 100%;
+            height: 100%;
         }
         
         .control-btn:hover {
-            background: rgba(79, 172, 254, 0.8);
-            border-color: rgba(79, 172, 254, 0.8);
             transform: scale(1.1);
+            border-color: rgba(79, 172, 254, 0.8);
+            color: white;
+            z-index: 1;
+        }
+        
+        .drag-preview {
+            position: fixed;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%) scale(0.9);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            opacity: 0.9;
+            animation: dragScale 0.3s ease;
+        }
+        
+        @keyframes dragScale {
+            from { transform: translate(-50%, -50%) scale(0); }
+            to { transform: translate(-50%, -50%) scale(0.9); }
+        }
+        
+        /* Smooth transitions for canvas transforms */
+        .smooth-transition {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Loading animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .loading-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Keyboard shortcuts hint */
+        .shortcuts-hint {
+            position: absolute;
+            bottom: 20px;
+            right: 240px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #999;
+            backdrop-filter: blur(10px);
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        
+        .shortcuts-hint:hover {
+            opacity: 1;
         }
         
         @media (max-width: 768px) {
@@ -472,6 +687,10 @@
             .flow-node {
                 min-width: 150px;
                 padding: 15px;
+            }
+            
+            .shortcuts-hint {
+                display: none;
             }
         }
     </style>
@@ -519,13 +738,15 @@
                     • Yes/No nodes have separate outputs<br>
                     • Green = Yes, Red = No<br>
                     • <strong>Hold Space + Drag to pan canvas</strong><br>
-                    • Use zoom controls to navigate
+                    • Use zoom controls to navigate<br>
+                    • Double-click canvas to add node
                 </div>
             </div>
         </div>
         
         <div class="canvas-container">
             <div class="canvas-grid"></div>
+            <div class="canvas-grid-fine"></div>
             <div class="canvas-viewport" id="canvasViewport">
                 <div class="canvas" id="canvas">
                     <svg class="svg-connections" id="svgConnections">
@@ -554,11 +775,19 @@
                 <button class="control-btn" onclick="flowCanvas.fitToView()" title="Fit All">⊞</button>
             </div>
             
+            <div class="shortcuts-hint">
+                <strong>Shortcuts:</strong> Space+Drag: Pan | Scroll: Zoom | Del: Delete Node
+            </div>
+            
             <div class="properties-panel" id="propertiesPanel">
                 <h3 style="color: #4facfe; margin-bottom: 15px;">Node Properties</h3>
                 <div id="propertiesContent"></div>
             </div>
         </div>
+    </div>
+    
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
     </div>
 
     <script>
@@ -577,11 +806,15 @@
                 this.isPanning = false;
                 this.panStartX = 0;
                 this.panStartY = 0;
-                this.canvasX = -2000; // Start centered in large canvas
+                this.canvasX = -2000;
                 this.canvasY = -2000;
                 this.zoom = 1;
                 this.minZoom = 0.1;
                 this.maxZoom = 2;
+                
+                // Animation frame for smooth updates
+                this.animationFrame = null;
+                this.dragAnimationFrame = null;
                 
                 this.initializeEventListeners();
                 this.addStartNode();
@@ -594,9 +827,8 @@
                 const canvasContainer = document.querySelector('.canvas-container');
                 const palette = document.querySelector('.node-palette');
                 
-                // Canvas panning functionality
+                // Smooth canvas panning
                 canvasViewport.addEventListener('mousedown', (e) => {
-                    // Only start panning if space is held or middle mouse button
                     if (e.button === 1 || (e.button === 0 && e.ctrlKey) || (e.button === 0 && this.spacePressed)) {
                         e.preventDefault();
                         this.startPanning(e);
@@ -621,11 +853,24 @@
                     }
                 });
                 
-                // Zoom with mouse wheel
+                // Smooth zoom with mouse wheel
+                let zoomTimeout;
                 canvasViewport.addEventListener('wheel', (e) => {
                     e.preventDefault();
+                    
+                    // Clear any existing timeout
+                    clearTimeout(zoomTimeout);
+                    
+                    // Add smooth transition during zoom
+                    canvas.classList.add('smooth-transition');
+                    
                     const delta = e.deltaY > 0 ? 0.9 : 1.1;
                     this.zoomAt(e.clientX, e.clientY, delta);
+                    
+                    // Remove smooth transition after zoom completes
+                    zoomTimeout = setTimeout(() => {
+                        canvas.classList.remove('smooth-transition');
+                    }, 300);
                 });
                 
                 // Space key for panning mode
@@ -635,6 +880,11 @@
                         e.preventDefault();
                         this.spacePressed = true;
                         canvasViewport.style.cursor = 'grab';
+                    }
+                    
+                    // Delete key to remove selected node
+                    if (e.key === 'Delete' && this.selectedNode) {
+                        this.deleteNode(this.selectedNode);
                     }
                 });
                 
@@ -647,12 +897,21 @@
                     }
                 });
                 
-                // Mouse-based drag and drop for better compatibility
+                // Double-click to add node
+                canvasViewport.addEventListener('dblclick', (e) => {
+                    if (e.target === canvasViewport || e.target.closest('.canvas-grid')) {
+                        const rect = canvasViewport.getBoundingClientRect();
+                        const canvasX = (e.clientX - rect.left - this.canvasX) / this.zoom;
+                        const canvasY = (e.clientY - rect.top - this.canvasY) / this.zoom;
+                        this.showNodeMenu(canvasX, canvasY);
+                    }
+                });
+                
+                // Enhanced drag and drop with visual feedback
                 let isDraggingFromPalette = false;
                 let draggedNodeType = null;
                 let dragPreview = null;
                 
-                // Palette mouse events (more reliable than HTML5 drag/drop)
                 palette.addEventListener('mousedown', (e) => {
                     if (e.target.classList.contains('palette-item')) {
                         e.preventDefault();
@@ -663,23 +922,9 @@
                         dragPreview = document.createElement('div');
                         dragPreview.className = 'drag-preview';
                         dragPreview.textContent = e.target.textContent;
-                        dragPreview.style.cssText = `
-                            position: fixed;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            padding: 10px 15px;
-                            border-radius: 10px;
-                            font-weight: 600;
-                            font-size: 14px;
-                            pointer-events: none;
-                            z-index: 10000;
-                            transform: translate(-50%, -50%) scale(0.9);
-                            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                            opacity: 0.9;
-                        `;
                         document.body.appendChild(dragPreview);
                         
-                        // Visual feedback on original item
+                        // Visual feedback
                         e.target.style.opacity = '0.5';
                         e.target.style.transform = 'scale(0.95)';
                         
@@ -697,9 +942,9 @@
                         const rect = canvasContainer.getBoundingClientRect();
                         if (e.clientX >= rect.left && e.clientX <= rect.right && 
                             e.clientY >= rect.top && e.clientY <= rect.bottom) {
-                            canvasContainer.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
+                            canvasContainer.classList.add('drag-over');
                         } else {
-                            canvasContainer.style.backgroundColor = '';
+                            canvasContainer.classList.remove('drag-over');
                         }
                     }
                 });
@@ -709,13 +954,16 @@
                     if (isDraggingFromPalette) {
                         const rect = canvasViewport.getBoundingClientRect();
                         
-                        // Check if dropped on canvas
                         if (e.clientX >= rect.left && e.clientX <= rect.right && 
                             e.clientY >= rect.top && e.clientY <= rect.bottom) {
-                            // Convert screen coordinates to canvas coordinates
                             const canvasX = (e.clientX - rect.left - this.canvasX) / this.zoom;
                             const canvasY = (e.clientY - rect.top - this.canvasY) / this.zoom;
-                            this.createNode(draggedNodeType, Math.max(20, canvasX - 100), Math.max(20, canvasY - 50));
+                            
+                            // Snap to grid
+                            const snappedX = Math.round(canvasX / 10) * 10;
+                            const snappedY = Math.round(canvasY / 10) * 10;
+                            
+                            this.createNode(draggedNodeType, snappedX - 100, snappedY - 50);
                         }
                         
                         // Cleanup
@@ -724,74 +972,15 @@
                             dragPreview = null;
                         }
                         
-                        // Reset visual states
                         document.querySelectorAll('.palette-item').forEach(item => {
                             item.style.opacity = '1';
                             item.style.transform = '';
                         });
                         
-                        canvasContainer.style.backgroundColor = '';
+                        canvasContainer.classList.remove('drag-over');
                         document.body.style.cursor = '';
                         isDraggingFromPalette = false;
                         draggedNodeType = null;
-                    }
-                });
-                
-                // HTML5 Drag and Drop as fallback
-                palette.addEventListener('dragstart', (e) => {
-                    if (e.target.classList.contains('palette-item')) {
-                        e.dataTransfer.setData('text/plain', e.target.dataset.type);
-                        e.dataTransfer.effectAllowed = 'copy';
-                        e.target.style.opacity = '0.5';
-                    }
-                });
-                
-                palette.addEventListener('dragend', (e) => {
-                    if (e.target.classList.contains('palette-item')) {
-                        e.target.style.opacity = '1';
-                    }
-                });
-                
-                // Canvas HTML5 drop events
-                [canvasViewport, canvasContainer].forEach(element => {
-                    element.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'copy';
-                        element.style.backgroundColor = 'rgba(79, 172, 254, 0.1)';
-                    });
-                    
-                    element.addEventListener('dragleave', (e) => {
-                        if (!element.contains(e.relatedTarget)) {
-                            element.style.backgroundColor = '';
-                        }
-                    });
-                    
-                    element.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        element.style.backgroundColor = '';
-                        const nodeType = e.dataTransfer.getData('text/plain');
-                        if (nodeType) {
-                            const rect = canvasViewport.getBoundingClientRect();
-                            const canvasX = (e.clientX - rect.left - this.canvasX) / this.zoom;
-                            const canvasY = (e.clientY - rect.top - this.canvasY) / this.zoom;
-                            this.createNode(nodeType, Math.max(20, canvasX - 100), Math.max(20, canvasY - 50));
-                        }
-                    });
-                });
-                
-                // Click to add as final fallback
-                palette.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('palette-item') && !isDraggingFromPalette) {
-                        const nodeType = e.target.dataset.type;
-                        const randomX = 200 + Math.random() * 300;
-                        const randomY = 150 + Math.random() * 200;
-                        this.createNode(nodeType, randomX, randomY);
-                        
-                        // Visual feedback
-                        e.target.style.transform = 'scale(0.95)';
-                        setTimeout(() => {
-                            e.target.style.transform = '';
-                        }, 150);
                     }
                 });
                 
@@ -803,7 +992,7 @@
                     }
                 });
                 
-                // Connection events
+                // Connection events with visual feedback
                 canvas.addEventListener('mousedown', (e) => {
                     if (e.target.classList.contains('connection-point')) {
                         e.stopPropagation();
@@ -824,7 +1013,7 @@
                 });
             }
             
-            // Canvas panning methods
+            // Smooth panning methods
             startPanning(e) {
                 this.isPanning = true;
                 this.panStartX = e.clientX - this.canvasX;
@@ -836,10 +1025,12 @@
             updatePanning(e) {
                 if (!this.isPanning) return;
                 
-                this.canvasX = e.clientX - this.panStartX;
-                this.canvasY = e.clientY - this.panStartY;
-                
-                this.updateCanvasTransform();
+                cancelAnimationFrame(this.animationFrame);
+                this.animationFrame = requestAnimationFrame(() => {
+                    this.canvasX = e.clientX - this.panStartX;
+                    this.canvasY = e.clientY - this.panStartY;
+                    this.updateCanvasTransform();
+                });
             }
             
             stopPanning() {
@@ -858,19 +1049,15 @@
                 const viewport = document.getElementById('canvasViewport');
                 const rect = viewport.getBoundingClientRect();
                 
-                // Get point relative to viewport
                 const x = clientX - rect.left;
                 const y = clientY - rect.top;
                 
-                // Calculate point in canvas coordinates before zoom
                 const canvasX = (x - this.canvasX) / this.zoom;
                 const canvasY = (y - this.canvasY) / this.zoom;
                 
-                // Apply zoom
                 const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * factor));
                 
                 if (newZoom !== this.zoom) {
-                    // Adjust pan to keep the point under cursor
                     this.canvasX = x - canvasX * newZoom;
                     this.canvasY = y - canvasY * newZoom;
                     this.zoom = newZoom;
@@ -884,7 +1071,15 @@
                 const rect = viewport.getBoundingClientRect();
                 const centerX = rect.width / 2;
                 const centerY = rect.height / 2;
+                
+                const canvas = document.getElementById('canvas');
+                canvas.classList.add('smooth-transition');
+                
                 this.zoomAt(rect.left + centerX, rect.top + centerY, 1.2);
+                
+                setTimeout(() => {
+                    canvas.classList.remove('smooth-transition');
+                }, 300);
             }
             
             zoomOut() {
@@ -892,37 +1087,49 @@
                 const rect = viewport.getBoundingClientRect();
                 const centerX = rect.width / 2;
                 const centerY = rect.height / 2;
+                
+                const canvas = document.getElementById('canvas');
+                canvas.classList.add('smooth-transition');
+                
                 this.zoomAt(rect.left + centerX, rect.top + centerY, 0.8);
+                
+                setTimeout(() => {
+                    canvas.classList.remove('smooth-transition');
+                }, 300);
             }
             
             resetView() {
+                const canvas = document.getElementById('canvas');
+                canvas.classList.add('smooth-transition');
+                
                 this.canvasX = -2000;
                 this.canvasY = -2000;
                 this.zoom = 1;
                 this.updateCanvasTransform();
+                
+                setTimeout(() => {
+                    canvas.classList.remove('smooth-transition');
+                }, 300);
             }
             
             fitToView() {
                 if (this.nodes.size === 0) return;
                 
-                // Calculate bounds of all nodes
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                 
                 this.nodes.forEach(node => {
                     minX = Math.min(minX, node.x);
                     minY = Math.min(minY, node.y);
-                    maxX = Math.max(maxX, node.x + 300); // approximate node width
-                    maxY = Math.max(maxY, node.y + 150); // approximate node height
+                    maxX = Math.max(maxX, node.x + 300);
+                    maxY = Math.max(maxY, node.y + 150);
                 });
                 
-                // Add padding
                 const padding = 100;
                 minX -= padding;
                 minY -= padding;
                 maxX += padding;
                 maxY += padding;
                 
-                // Calculate required zoom and position
                 const viewport = document.getElementById('canvasViewport');
                 const rect = viewport.getBoundingClientRect();
                 
@@ -932,17 +1139,79 @@
                 const scaleX = rect.width / contentWidth;
                 const scaleY = rect.height / contentHeight;
                 
-                this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, Math.min(scaleX, scaleY)));
+                const canvas = document.getElementById('canvas');
+                canvas.classList.add('smooth-transition');
                 
-                // Center the content
+                this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, Math.min(scaleX, scaleY)));
                 this.canvasX = (rect.width - contentWidth * this.zoom) / 2 - minX * this.zoom;
                 this.canvasY = (rect.height - contentHeight * this.zoom) / 2 - minY * this.zoom;
                 
                 this.updateCanvasTransform();
+                
+                setTimeout(() => {
+                    canvas.classList.remove('smooth-transition');
+                }, 300);
+            }
+            
+            showNodeMenu(x, y) {
+                // Quick node creation menu
+                const menu = document.createElement('div');
+                menu.style.cssText = `
+                    position: absolute;
+                    left: ${x}px;
+                    top: ${y}px;
+                    background: rgba(22, 33, 62, 0.95);
+                    border-radius: 10px;
+                    padding: 10px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                    z-index: 1000;
+                    backdrop-filter: blur(10px);
+                `;
+                
+                const types = [
+                    { type: 'text', label: '📝 Text' },
+                    { type: 'checkbox', label: '☑️ Checkbox' },
+                    { type: 'file', label: '📁 File' },
+                    { type: 'yesno', label: '🔀 Yes/No' },
+                    { type: 'end', label: '🏁 End' }
+                ];
+                
+                types.forEach(({ type, label }) => {
+                    const item = document.createElement('div');
+                    item.textContent = label;
+                    item.style.cssText = `
+                        padding: 8px 15px;
+                        cursor: pointer;
+                        border-radius: 5px;
+                        margin: 2px 0;
+                        transition: background 0.2s;
+                        color: white;
+                    `;
+                    item.onmouseover = () => item.style.background = 'rgba(79, 172, 254, 0.2)';
+                    item.onmouseout = () => item.style.background = '';
+                    item.onclick = () => {
+                        this.createNode(type, x - 100, y - 50);
+                        menu.remove();
+                    };
+                    menu.appendChild(item);
+                });
+                
+                document.getElementById('canvas').appendChild(menu);
+                
+                // Remove menu when clicking elsewhere
+                setTimeout(() => {
+                    const removeMenu = (e) => {
+                        if (!menu.contains(e.target)) {
+                            menu.remove();
+                            document.removeEventListener('click', removeMenu);
+                        }
+                    };
+                    document.addEventListener('click', removeMenu);
+                }, 100);
             }
             
             addStartNode() {
-                this.createNode('start', 2100, 2100); // Position in center of large canvas
+                this.createNode('start', 2100, 2100);
             }
             
             createNode(type, x, y) {
@@ -957,6 +1226,17 @@
                 
                 this.nodes.set(nodeId, node);
                 this.renderNode(node);
+                
+                // Smooth appearance animation
+                const nodeElement = document.getElementById(nodeId);
+                nodeElement.style.opacity = '0';
+                nodeElement.style.transform = 'scale(0.8)';
+                
+                requestAnimationFrame(() => {
+                    nodeElement.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                    nodeElement.style.opacity = '1';
+                    nodeElement.style.transform = 'scale(1)';
+                });
                 
                 return nodeId;
             }
@@ -1101,11 +1381,9 @@
             }
             
             addConnectionPoints(nodeElement, nodeType) {
-                // Remove existing connection points
                 const existingPoints = nodeElement.querySelectorAll('.connection-point');
                 existingPoints.forEach(point => point.remove());
                 
-                // Add input point (except for start node)
                 if (nodeType !== 'start') {
                     const inputPoint = document.createElement('div');
                     inputPoint.className = 'connection-point input';
@@ -1114,10 +1392,8 @@
                     nodeElement.appendChild(inputPoint);
                 }
                 
-                // Add output points (except for end node)
                 if (nodeType !== 'end') {
                     if (nodeType === 'yesno') {
-                        // Yes output
                         const yesPoint = document.createElement('div');
                         yesPoint.className = 'connection-point yes';
                         yesPoint.dataset.nodeId = nodeElement.id;
@@ -1125,7 +1401,6 @@
                         yesPoint.title = 'Yes output';
                         nodeElement.appendChild(yesPoint);
                         
-                        // No output
                         const noPoint = document.createElement('div');
                         noPoint.className = 'connection-point no';
                         noPoint.dataset.nodeId = nodeElement.id;
@@ -1133,7 +1408,6 @@
                         noPoint.title = 'No output';
                         nodeElement.appendChild(noPoint);
                     } else {
-                        // Regular output
                         const outputPoint = document.createElement('div');
                         outputPoint.className = 'connection-point output';
                         outputPoint.dataset.nodeId = nodeElement.id;
@@ -1155,6 +1429,9 @@
                     element: connectionPoint
                 };
                 
+                // Add visual feedback
+                connectionPoint.classList.add('connecting');
+                
                 // Create temporary line
                 const svg = document.getElementById('svgConnections');
                 this.tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -1167,14 +1444,17 @@
             updateTempLine(event) {
                 if (!this.tempLine || !this.connectionStart) return;
                 
-                const viewport = document.getElementById('canvasViewport');
-                const rect = viewport.getBoundingClientRect();
-                const startPoint = this.getConnectionPointPosition(this.connectionStart.element);
-                const endX = (event.clientX - rect.left - this.canvasX) / this.zoom;
-                const endY = (event.clientY - rect.top - this.canvasY) / this.zoom;
-                
-                const path = this.createPath(startPoint.x, startPoint.y, endX, endY);
-                this.tempLine.setAttribute('d', path);
+                cancelAnimationFrame(this.dragAnimationFrame);
+                this.dragAnimationFrame = requestAnimationFrame(() => {
+                    const viewport = document.getElementById('canvasViewport');
+                    const rect = viewport.getBoundingClientRect();
+                    const startPoint = this.getConnectionPointPosition(this.connectionStart.element);
+                    const endX = (event.clientX - rect.left - this.canvasX) / this.zoom;
+                    const endY = (event.clientY - rect.top - this.canvasY) / this.zoom;
+                    
+                    const path = this.createPath(startPoint.x, startPoint.y, endX, endY);
+                    this.tempLine.setAttribute('d', path);
+                });
             }
             
             endConnection(target) {
@@ -1183,13 +1463,18 @@
                 this.isConnecting = false;
                 document.body.style.cursor = 'default';
                 
+                // Remove visual feedback
+                if (this.connectionStart) {
+                    this.connectionStart.element.classList.remove('connecting');
+                }
+                
                 // Remove temporary line
                 if (this.tempLine) {
                     this.tempLine.remove();
                     this.tempLine = null;
                 }
                 
-                // Check if target is a valid input connection point
+                // Check if target is valid
                 if (target && target.classList.contains('connection-point') && 
                     target.dataset.type === 'input' &&
                     target.dataset.nodeId !== this.connectionStart.nodeId) {
@@ -1205,7 +1490,6 @@
             }
             
             createConnection(connection) {
-                // Check if connection already exists
                 const exists = this.connections.some(conn => 
                     conn.from === connection.from && 
                     conn.to === connection.to && 
@@ -1221,11 +1505,9 @@
             renderConnections() {
                 const svg = document.getElementById('svgConnections');
                 
-                // Clear existing connections
                 const existingLines = svg.querySelectorAll('.connection-line');
                 existingLines.forEach(line => line.remove());
                 
-                // Render all connections
                 this.connections.forEach(connection => {
                     const fromNode = document.getElementById(connection.from);
                     const toNode = document.getElementById(connection.to);
@@ -1255,7 +1537,6 @@
                     
                     const path = this.createPath(fromPos.x, fromPos.y, toPos.x, toPos.y);
                     line.setAttribute('d', path);
-                    line.setAttribute('stroke-dasharray', '10,5');
                     
                     svg.appendChild(line);
                 });
@@ -1265,8 +1546,9 @@
                 const dx = x2 - x1;
                 const dy = y2 - y1;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                const controlOffset = Math.min(distance / 2, 100);
+                const controlOffset = Math.min(distance / 2, 150);
                 
+                // Create smooth bezier curve
                 return `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
             }
             
@@ -1308,12 +1590,20 @@
                 
                 const content = document.getElementById('propertiesContent');
                 content.innerHTML = this.getPropertiesPanelHTML(node);
-                panel.classList.add('show');
+                
+                // Show with animation
+                panel.style.display = 'block';
+                requestAnimationFrame(() => {
+                    panel.classList.add('show');
+                });
             }
             
             hidePropertiesPanel() {
                 const panel = document.getElementById('propertiesPanel');
                 panel.classList.remove('show');
+                setTimeout(() => {
+                    panel.style.display = 'none';
+                }, 300);
             }
             
             getPropertiesPanelHTML(node) {
@@ -1321,21 +1611,8 @@
                 html += `<div style="margin-bottom: 15px;"><strong>Type:</strong> ${node.type}</div>`;
                 html += `<div style="margin-bottom: 15px;"><strong>Position:</strong> ${Math.round(node.x)}, ${Math.round(node.y)}</div>`;
                 
-                // Add type-specific properties
                 switch (node.type) {
                     case 'text':
-                        html += `
-                            <div style="margin-bottom: 10px;">
-                                <label style="font-size: 12px; color: #ccc;">Question:</label>
-                                <div style="color: white; font-size: 14px;">${node.data.question}</div>
-                            </div>
-                            <div style="margin-bottom: 10px;">
-                                <label style="font-size: 12px; color: #ccc;">Placeholder:</label>
-                                <div style="color: white; font-size: 14px;">${node.data.placeholder}</div>
-                            </div>
-                        `;
-                        break;
-                    case 'checkbox':
                         html += `
                             <div style="margin-bottom: 10px;">
                                 <label style="font-size: 12px; color: #ccc;">Question:</label>
@@ -1358,7 +1635,6 @@
                 
                 nodeElement.classList.add('dragging');
                 
-                // Convert screen coordinates to canvas coordinates
                 const viewport = document.getElementById('canvasViewport');
                 const rect = viewport.getBoundingClientRect();
                 const canvasX = (event.clientX - rect.left - this.canvasX) / this.zoom;
@@ -1367,25 +1643,125 @@
                 const startX = canvasX - node.x;
                 const startY = canvasY - node.y;
                 
+                let lastTime = performance.now();
+                let velocityX = 0;
+                let velocityY = 0;
+                
                 const onMouseMove = (e) => {
-                    const newCanvasX = (e.clientX - rect.left - this.canvasX) / this.zoom;
-                    const newCanvasY = (e.clientY - rect.top - this.canvasY) / this.zoom;
-                    
-                    node.x = newCanvasX - startX;
-                    node.y = newCanvasY - startY;
-                    nodeElement.style.left = node.x + 'px';
-                    nodeElement.style.top = node.y + 'px';
-                    this.renderConnections();
+                    cancelAnimationFrame(this.dragAnimationFrame);
+                    this.dragAnimationFrame = requestAnimationFrame(() => {
+                        const currentTime = performance.now();
+                        const deltaTime = currentTime - lastTime;
+                        lastTime = currentTime;
+                        
+                        const newCanvasX = (e.clientX - rect.left - this.canvasX) / this.zoom;
+                        const newCanvasY = (e.clientY - rect.top - this.canvasY) / this.zoom;
+                        
+                        const prevX = node.x;
+                        const prevY = node.y;
+                        
+                        // Snap to grid while dragging
+                        const snapGrid = 10;
+                        node.x = Math.round((newCanvasX - startX) / snapGrid) * snapGrid;
+                        node.y = Math.round((newCanvasY - startY) / snapGrid) * snapGrid;
+                        
+                        // Calculate velocity for smooth motion
+                        if (deltaTime > 0) {
+                            velocityX = (node.x - prevX) / deltaTime;
+                            velocityY = (node.y - prevY) / deltaTime;
+                        }
+                        
+                        nodeElement.style.left = node.x + 'px';
+                        nodeElement.style.top = node.y + 'px';
+                        
+                        // Update connections smoothly
+                        this.updateConnectionsForNode(nodeId);
+                    });
                 };
                 
                 const onMouseUp = () => {
                     nodeElement.classList.remove('dragging');
+                    
+                    // Apply momentum
+                    const deceleration = 0.95;
+                    const applyMomentum = () => {
+                        if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
+                            node.x += velocityX * 16;
+                            node.y += velocityY * 16;
+                            
+                            // Snap to grid
+                            node.x = Math.round(node.x / 10) * 10;
+                            node.y = Math.round(node.y / 10) * 10;
+                            
+                            nodeElement.style.left = node.x + 'px';
+                            nodeElement.style.top = node.y + 'px';
+                            
+                            velocityX *= deceleration;
+                            velocityY *= deceleration;
+                            
+                            this.updateConnectionsForNode(nodeId);
+                            requestAnimationFrame(applyMomentum);
+                        }
+                    };
+                    
+                    // Only apply momentum for fast drags
+                    if (Math.abs(velocityX) > 2 || Math.abs(velocityY) > 2) {
+                        requestAnimationFrame(applyMomentum);
+                    }
+                    
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
                 };
                 
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
+            }
+            
+            updateConnectionsForNode(nodeId) {
+                // Update only connections related to this node
+                const svg = document.getElementById('svgConnections');
+                const relevantConnections = this.connections.filter(conn => 
+                    conn.from === nodeId || conn.to === nodeId
+                );
+                
+                relevantConnections.forEach(connection => {
+                    const lineId = `line_${connection.from}_${connection.to}_${connection.type}`;
+                    let line = svg.querySelector(`#${lineId}`);
+                    
+                    const fromNode = document.getElementById(connection.from);
+                    const toNode = document.getElementById(connection.to);
+                    
+                    if (!fromNode || !toNode) return;
+                    
+                    const fromPoint = this.getNodeConnectionPoint(fromNode, connection.type);
+                    const toPoint = this.getNodeConnectionPoint(toNode, 'input');
+                    
+                    if (!fromPoint || !toPoint) return;
+                    
+                    const fromPos = this.getConnectionPointPosition(fromPoint);
+                    const toPos = this.getConnectionPointPosition(toPoint);
+                    
+                    if (!line) {
+                        line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        line.id = lineId;
+                        line.classList.add('connection-line');
+                        
+                        if (connection.type === 'yes') {
+                            line.classList.add('yes-connection');
+                            line.setAttribute('marker-end', 'url(#arrowhead-yes)');
+                        } else if (connection.type === 'no') {
+                            line.classList.add('no-connection');
+                            line.setAttribute('marker-end', 'url(#arrowhead-no)');
+                        } else {
+                            line.setAttribute('marker-end', 'url(#arrowhead)');
+                        }
+                        
+                        svg.appendChild(line);
+                    }
+                    
+                    const path = this.createPath(fromPos.x, fromPos.y, toPos.x, toPos.y);
+                    line.setAttribute('d', path);
+                });
             }
             
             updateNodeData(nodeId, key, value) {
@@ -1425,53 +1801,66 @@
             }
             
             deleteNode(nodeId) {
-                // Remove connections involving this node
-                this.connections = this.connections.filter(conn => 
-                    conn.from !== nodeId && conn.to !== nodeId
-                );
-                
-                // Remove node from DOM
+                // Animate node removal
                 const nodeElement = document.getElementById(nodeId);
                 if (nodeElement) {
-                    nodeElement.remove();
-                }
-                
-                // Remove node from map
-                this.nodes.delete(nodeId);
-                
-                // Update connections
-                this.renderConnections();
-                
-                // Hide properties panel if this node was selected
-                if (this.selectedNode === nodeId) {
-                    this.hidePropertiesPanel();
+                    nodeElement.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                    nodeElement.style.opacity = '0';
+                    nodeElement.style.transform = 'scale(0.8)';
+                    
+                    setTimeout(() => {
+                        // Remove connections
+                        this.connections = this.connections.filter(conn => 
+                            conn.from !== nodeId && conn.to !== nodeId
+                        );
+                        
+                        // Remove node
+                        nodeElement.remove();
+                        this.nodes.delete(nodeId);
+                        
+                        // Update all connections
+                        this.renderConnections();
+                        
+                        // Hide properties panel
+                        if (this.selectedNode === nodeId) {
+                            this.hidePropertiesPanel();
+                        }
+                    }, 300);
                 }
             }
             
             clearCanvas() {
                 if (confirm('Are you sure you want to clear the entire canvas?')) {
-                    this.nodes.clear();
-                    this.connections = [];
-                    document.getElementById('canvas').innerHTML = `
-                        <svg class="svg-connections" id="svgConnections">
-                            <defs>
-                                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                                        refX="10" refY="3.5" orient="auto" class="arrow-marker">
-                                    <polygon points="0 0, 10 3.5, 0 7" />
-                                </marker>
-                                <marker id="arrowhead-yes" markerWidth="10" markerHeight="7" 
-                                        refX="10" refY="3.5" orient="auto" class="arrow-marker yes">
-                                    <polygon points="0 0, 10 3.5, 0 7" />
-                                </marker>
-                                <marker id="arrowhead-no" markerWidth="10" markerHeight="7" 
-                                        refX="10" refY="3.5" orient="auto" class="arrow-marker no">
-                                    <polygon points="0 0, 10 3.5, 0 7" />
-                                </marker>
-                            </defs>
-                        </svg>
-                    `;
-                    this.hidePropertiesPanel();
-                    this.addStartNode();
+                    // Show loading
+                    const loading = document.getElementById('loadingOverlay');
+                    loading.classList.add('show');
+                    
+                    setTimeout(() => {
+                        this.nodes.clear();
+                        this.connections = [];
+                        document.getElementById('canvas').innerHTML = `
+                            <svg class="svg-connections" id="svgConnections">
+                                <defs>
+                                    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                            refX="10" refY="3.5" orient="auto" class="arrow-marker">
+                                        <polygon points="0 0, 10 3.5, 0 7" />
+                                    </marker>
+                                    <marker id="arrowhead-yes" markerWidth="10" markerHeight="7" 
+                                            refX="10" refY="3.5" orient="auto" class="arrow-marker yes">
+                                        <polygon points="0 0, 10 3.5, 0 7" />
+                                    </marker>
+                                    <marker id="arrowhead-no" markerWidth="10" markerHeight="7" 
+                                            refX="10" refY="3.5" orient="auto" class="arrow-marker no">
+                                        <polygon points="0 0, 10 3.5, 0 7" />
+                                    </marker>
+                                </defs>
+                            </svg>
+                        `;
+                        this.hidePropertiesPanel();
+                        this.addStartNode();
+                        
+                        loading.classList.remove('show');
+                    }, 500);
                 }
             }
             
@@ -1487,7 +1876,7 @@
                 const dataStr = JSON.stringify(flowData, null, 2);
                 const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
                 
-                const exportFileDefaultName = 'flow_canvas.json';
+                const exportFileDefaultName = `flow_canvas_${new Date().toISOString().slice(0,10)}.json`;
                 
                 const linkElement = document.createElement('a');
                 linkElement.setAttribute('href', dataUri);
@@ -1500,17 +1889,14 @@
             }
             
             generateFormPreview() {
-                // Find start node
                 const startNode = Array.from(this.nodes.values()).find(node => node.type === 'start');
                 if (!startNode) {
                     alert('No start node found!');
                     return;
                 }
                 
-                // Generate form HTML
                 let formHTML = this.generateFormHTML(startNode.id, new Set());
                 
-                // Create preview window
                 const previewWindow = window.open('', '_blank', 'width=800,height=600');
                 previewWindow.document.write(`
                     <!DOCTYPE html>
@@ -1518,18 +1904,143 @@
                     <head>
                         <title>Form Preview</title>
                         <style>
-                            body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-                            .form-container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-                            .question-block { margin-bottom: 25px; padding: 20px; border-left: 4px solid #4facfe; background: #f9f9f9; }
-                            .question-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: #333; }
-                            .form-input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; }
-                            .checkbox-group { display: flex; flex-direction: column; gap: 10px; }
-                            .checkbox-item { display: flex; align-items: center; gap: 8px; }
-                            .radio-group { display: flex; gap: 20px; }
-                            .radio-item { display: flex; align-items: center; gap: 8px; }
-                            .file-upload { border: 2px dashed #4facfe; padding: 20px; text-align: center; border-radius: 5px; }
-                            .conditional-section { margin-left: 20px; margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 5px; }
-                            .btn { background: #4facfe; color: white; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+                            * { margin: 0; padding: 0; box-sizing: border-box; }
+                            body { 
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                                padding: 20px; 
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                min-height: 100vh;
+                            }
+                            .form-container { 
+                                max-width: 600px; 
+                                margin: 0 auto; 
+                                background: white; 
+                                padding: 40px; 
+                                border-radius: 20px; 
+                                box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+                            }
+                            h1 {
+                                color: #333;
+                                margin-bottom: 30px;
+                                text-align: center;
+                            }
+                            .question-block { 
+                                margin-bottom: 30px; 
+                                padding: 25px; 
+                                border-left: 4px solid #4facfe; 
+                                background: #f8f9fa;
+                                border-radius: 10px;
+                                transition: all 0.3s ease;
+                            }
+                            .question-block:hover {
+                                box-shadow: 0 5px 20px rgba(79, 172, 254, 0.1);
+                                transform: translateY(-2px);
+                            }
+                            .question-title { 
+                                font-size: 18px; 
+                                font-weight: 600; 
+                                margin-bottom: 15px; 
+                                color: #333; 
+                            }
+                            .form-input { 
+                                width: 100%; 
+                                padding: 12px 16px; 
+                                border: 2px solid #e1e8ed; 
+                                border-radius: 8px; 
+                                font-size: 16px;
+                                transition: all 0.3s ease;
+                            }
+                            .form-input:focus {
+                                outline: none;
+                                border-color: #4facfe;
+                                box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+                            }
+                            .checkbox-group { 
+                                display: flex; 
+                                flex-direction: column; 
+                                gap: 12px; 
+                            }
+                            .checkbox-item { 
+                                display: flex; 
+                                align-items: center; 
+                                gap: 10px;
+                                padding: 8px;
+                                border-radius: 6px;
+                                transition: background 0.2s;
+                            }
+                            .checkbox-item:hover {
+                                background: rgba(79, 172, 254, 0.05);
+                            }
+                            .checkbox-item input[type="checkbox"] {
+                                width: 20px;
+                                height: 20px;
+                                cursor: pointer;
+                            }
+                            .radio-group { 
+                                display: flex; 
+                                gap: 30px;
+                                padding: 10px 0;
+                            }
+                            .radio-item { 
+                                display: flex; 
+                                align-items: center; 
+                                gap: 10px;
+                                padding: 10px 20px;
+                                border: 2px solid #e1e8ed;
+                                border-radius: 25px;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                            }
+                            .radio-item:hover {
+                                border-color: #4facfe;
+                                background: rgba(79, 172, 254, 0.05);
+                            }
+                            .radio-item input[type="radio"] {
+                                width: 18px;
+                                height: 18px;
+                                cursor: pointer;
+                            }
+                            .file-upload { 
+                                border: 2px dashed #4facfe; 
+                                padding: 30px; 
+                                text-align: center; 
+                                border-radius: 10px;
+                                background: rgba(79, 172, 254, 0.05);
+                                transition: all 0.3s ease;
+                                cursor: pointer;
+                            }
+                            .file-upload:hover {
+                                border-color: #667eea;
+                                background: rgba(79, 172, 254, 0.1);
+                            }
+                            .conditional-section { 
+                                margin-left: 20px; 
+                                margin-top: 20px; 
+                                padding: 20px; 
+                                background: #fff3cd; 
+                                border-radius: 10px;
+                                border: 2px solid #ffeaa7;
+                            }
+                            .btn { 
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                color: white; 
+                                padding: 14px 30px; 
+                                border: none; 
+                                border-radius: 25px; 
+                                cursor: pointer; 
+                                font-size: 16px;
+                                font-weight: 600;
+                                text-transform: uppercase;
+                                letter-spacing: 1px;
+                                transition: all 0.3s ease;
+                                display: block;
+                                margin: 0 auto;
+                                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+                            }
+                            .btn:hover {
+                                transform: translateY(-2px);
+                                box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+                            }
                         </style>
                     </head>
                     <body>
@@ -1537,7 +2048,7 @@
                             <h1>Form Preview</h1>
                             <form id="previewForm">
                                 ${formHTML}
-                                <button type="button" class="btn" onclick="alert('Form submitted! (This is just a preview)')">Submit Form</button>
+                                <button type="button" class="btn" onclick="alert('Form submitted successfully! (This is just a preview)')">Submit Form</button>
                             </form>
                         </div>
                     </body>
@@ -1552,7 +2063,6 @@
                 
                 const node = this.nodes.get(nodeId);
                 if (!node || node.type === 'start') {
-                    // Find next node
                     const nextConnection = this.connections.find(conn => conn.from === nodeId);
                     if (nextConnection) {
                         return this.generateFormHTML(nextConnection.to, visited);
@@ -1578,15 +2088,14 @@
                         html += '</div>';
                         break;
                     case 'file':
-                        html += `<div class="file-upload"><input type="file" accept="${node.data.acceptedTypes}"><p>Upload file here</p></div>`;
+                        html += `<div class="file-upload"><input type="file" accept="${node.data.acceptedTypes}" style="display: none;" id="file${nodeId}"><label for="file${nodeId}">📁 Click to upload file</label></div>`;
                         break;
                     case 'yesno':
                         html += '<div class="radio-group">';
-                        html += `<div class="radio-item"><input type="radio" name="yn${nodeId}" id="yes${nodeId}"><label for="yes${nodeId}">Yes</label></div>`;
-                        html += `<div class="radio-item"><input type="radio" name="yn${nodeId}" id="no${nodeId}"><label for="no${nodeId}">No</label></div>`;
+                        html += `<div class="radio-item"><input type="radio" name="yn${nodeId}" id="yes${nodeId}"><label for="yes${nodeId}">✓ Yes</label></div>`;
+                        html += `<div class="radio-item"><input type="radio" name="yn${nodeId}" id="no${nodeId}"><label for="no${nodeId}">✗ No</label></div>`;
                         html += '</div>';
                         
-                        // Add conditional sections
                         const yesConnection = this.connections.find(conn => conn.from === nodeId && conn.type === 'yes');
                         const noConnection = this.connections.find(conn => conn.from === nodeId && conn.type === 'no');
                         
@@ -1603,7 +2112,6 @@
                 
                 html += '</div>';
                 
-                // Find next node
                 const nextConnection = this.connections.find(conn => conn.from === nodeId && conn.type === 'output');
                 if (nextConnection) {
                     html += this.generateFormHTML(nextConnection.to, visited);
